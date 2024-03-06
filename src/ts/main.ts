@@ -1,0 +1,207 @@
+import maplibregl, { convertFilter } from "maplibre-gl";
+
+import { overpassToGeojson } from "./query_overpass.ts";
+import { GeoJSON } from "geojson";
+
+// Initialize the map
+const latLongBrixen: number[] = [11.6603, 46.7176];
+const map = new maplibregl.Map({
+  container: "map",
+  style:
+    "https://api.maptiler.com/maps/basic/style.json?key=Q5QrPJVST2pfBYoNSxOo",
+  // style: "http://localhost:8080/styles/basic-preview/style.json",
+  // style: "http://localhost:8080/styles/bright/style.json",
+  // style: "https://demotiles.maplibre.org/style.json", // style URL
+  // center: [8.5456, 47.3739],
+  center: latLongBrixen,
+  zoom: 13.5,
+  // pitchWithRotate: false, // Disable tilting the map
+  // touchZoomRotate: false, // Disable zooming and rotating the map
+  dragRotate: false, // Disable rotating the map
+  // dragPan: false, // Disable panning the map
+});
+
+const filterGroup = document.getElementById("filter-group");
+
+let places = require("../markers.json");
+
+const categoryColors = {
+  A: "#FF0000",
+  B: "#00FF00",
+  C: "#0000FF",
+};
+
+// Create a popup, but don't add it to the map yet.
+const popup = new maplibregl.Popup({
+  closeButton: false,
+  closeOnClick: false,
+});
+
+let layerIDs: string[] = [];
+
+// Load GeoJSON data
+map.on("load", async () => {
+  const image = await map.loadImage(
+    "https://maplibre.org/maplibre-gl-js/docs/assets/custom_marker.png"
+  );
+  // Add an image to use as a custom marker
+  map.addImage("custom-marker", image.data);
+
+  map.addSource("markers", {
+    type: "geojson",
+    data: places, // Replace with the path to your GeoJSON file
+  });
+
+  let query_water = `[out:json][timeout:25];area(id:3600047300)->.searchArea;nwr["amenity"="drinking_water"](area.searchArea);out geom;`;
+  let geojson_water = await overpassToGeojson(query_water);
+
+  map.addSource("drinking_water", {
+    type: "geojson",
+    data: geojson_water,
+  });
+
+  map.addLayer({
+    id: "drinking_water",
+    source: "drinking_water",
+    type: "circle",
+    paint: {
+      "circle-radius": 4,
+      "circle-color": "orange",
+    },
+  });
+
+  Object.entries(categoryColors).forEach(([category, color]) => {
+    const layerID = `marker-${category}`;
+
+    // Add layer to the map
+    map.addLayer({
+      id: layerID,
+      source: "markers",
+      type: "circle",
+      paint: {
+        "circle-radius": 6,
+        "circle-color": color,
+      },
+      filter: ["==", "Kategorie", category],
+    });
+
+    layerIDs.push(layerID);
+
+    // Add checkbox and label elements for the layer.
+    const input = createCheckbox(layerID, true);
+    const label = createLabel(layerID, category);
+
+    filterGroup.appendChild(input);
+    filterGroup.appendChild(label);
+
+    // Add event listeners
+    input.addEventListener("change", toggleLayerVisibility(layerID));
+    map.on("mouseenter", layerID, showPopupOnMapEvent());
+    map.on("mouseleave", layerID, removePopupOnMapEvent());
+  });
+
+  const filterInput = document.getElementById(
+    "filter-input"
+  ) as HTMLInputElement;
+
+  filterInput.addEventListener("keyup", (e) => {
+    const value = (e.target as HTMLInputElement).value.trim().toLowerCase();
+
+    // get layers from map
+    // const layers = map.getStyle().layers;
+
+    for (const layerID of layerIDs) {
+      map.setFilter(layerID, null);
+    }
+  });
+
+  /**
+   * Creates a checkbox element with the specified id and checked state.
+   *
+   * @param id - The id of the checkbox element.
+   * @param checked - The initial checked state of the checkbox.
+   * @returns The created checkbox element.
+   */
+  function createCheckbox(id: string, checked: boolean): HTMLInputElement {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.id = id;
+    input.checked = checked;
+    return input;
+  }
+
+  /**
+   * Creates an HTML label element with the specified attributes.
+   *
+   * @param forId - The value of the "for" attribute for the label.
+   * @param textContent - The text content of the label.
+   * @returns The created HTML label element.
+   */
+  function createLabel(forId: string, textContent: string): HTMLLabelElement {
+    const label = document.createElement("label");
+    label.setAttribute("for", forId);
+    label.textContent = textContent;
+    return label;
+  }
+
+  /**
+   * Toggles the visibility of a layer on the map.
+   * @param layerID - The ID of the layer to toggle.
+   * @returns A function that handles the layer visibility toggle.
+   */
+  function toggleLayerVisibility(layerID: string): (e: Event) => void {
+    return (e) => {
+      const target = e.target as HTMLInputElement;
+      map.setLayoutProperty(
+        layerID,
+        "visibility",
+        target.checked ? "visible" : "none"
+      );
+    };
+  }
+});
+function removePopupOnMapEvent(): (
+  ev: maplibregl.MapMouseEvent & {
+    features?: maplibregl.MapGeoJSONFeature[] | undefined;
+  } & Object
+) => void {
+  return () => {
+    map.getCanvas().style.cursor = ""; // Reset the cursor style
+    popup.remove();
+  };
+}
+
+function showPopupOnMapEvent(): (
+  ev: maplibregl.MapMouseEvent & {
+    features?: maplibregl.MapGeoJSONFeature[] | undefined;
+  } & Object
+) => void {
+  return (e) => {
+    // Change the cursor style as a UI indicator.
+    map.getCanvas().style.cursor = "pointer";
+
+    const coordinates = e.features[0].geometry.coordinates.slice();
+    const properties = e.features[0].properties;
+    const description = properties.Beschreibung;
+    const name = properties.Name;
+
+    const öffnungszeiten = e.features[0].properties.Öffnungszeiten;
+
+    let popup_content = `<h3>${name}</h3>`;
+    if (description) {
+      popup_content += `<p>${description}</p>`;
+    }
+    if (öffnungszeiten) {
+      popup_content += `<p><b>Öffnungszeiten</b>: ${öffnungszeiten}</p>`;
+    }
+    popup_content += `<p><b>Properties</b>: <pre>${JSON.stringify(
+      properties,
+      null,
+      4
+    )}</pre> </p>`;
+
+    // Populate the popup and set its coordinates
+    // based on the feature found.
+    popup.setLngLat(coordinates).setHTML(popup_content).addTo(map);
+  };
+}

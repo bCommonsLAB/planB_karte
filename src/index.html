@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Simple Map</title>
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <!-- <script src="https://unpkg.com/maplibre-gl/dist/maplibre-gl.js"></script> -->
+
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css"
+    />
+    <link rel="stylesheet" type="text/css" href="styles/main.css" />
+  </head>
+  <body>
+    <!-- <h1>Simple Map</h1>
+    test 1 -->
+    <div id="map"></div>
+    <nav id="filter-group" class="filter-group"></nav>
+    <div class="filter-ctrl">
+      <input
+        id="filter-input"
+        type="text"
+        name="filter"
+        placeholder="Filter by name"
+      />
+    </div>
+
+    <script type="module" src="ts/merge_geojsons.ts"></script>
+
+    <script type="module" src="ts/main.ts"></script>
+    <!-- <script type="module" src="ts/query_overpass.js"></script> -->
+  </body>
+</html>
