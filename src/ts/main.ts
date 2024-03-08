@@ -221,14 +221,16 @@ function showPopupOnMapEvent(): (
     if (description) {
       popup_content += `<p>${description}</p>`;
     }
-    if (öffnungszeiten) {
+    if (true) {
       popup_content += `<p><b>Öffnungszeiten</b>: ${öffnungszeiten}</p>`;
     }
-    popup_content += `<p><b>Properties</b>: <pre>${JSON.stringify(
-      properties,
-      null,
-      4
-    )}</pre> </p>`;
+    if (false) {
+      popup_content += `<p><b>Properties</b>: <pre>${JSON.stringify(
+        properties,
+        null,
+        4
+      )}</pre> </p>`;
+    }
 
     // Populate the popup and set its coordinates
     // based on the feature found.
