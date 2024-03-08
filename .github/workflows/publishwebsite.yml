@@ -28,9 +28,6 @@ jobs:
     - name: Run predeploy script
       run: yarn predeploy
 
-    # - name: Run deploy script
-    #   run: yarn deploy
-
     - name: Deploy to GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
       with:
