@@ -47,11 +47,6 @@ map.on("load", async () => {
   // Add an image to use as a custom marker
   map.addImage("custom-marker", image.data);
 
-  map.addSource("markers", {
-    type: "geojson",
-    data: places, // Replace with the path to your GeoJSON file
-  });
-
   let query_water = `[out:json][timeout:25];area(id:3600047300)->.searchArea;nwr["amenity"="drinking_water"](area.searchArea);out geom;`;
   let geojson_water = await overpassToGeojson(query_water);
 
@@ -73,16 +68,29 @@ map.on("load", async () => {
   Object.entries(categoryColors).forEach(([category, color]) => {
     const layerID = `marker-${category}`;
 
+    // Add a source for each category
+
+    const filteredPlaces = places.features.filter(
+      (feature: GeoJSON.Feature) => feature.properties.Kategorie === category
+    );
+    map.addSource(layerID, {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: filteredPlaces,
+      },
+    });
+
     // Add layer to the map
     map.addLayer({
       id: layerID,
-      source: "markers",
+      source: layerID,
       type: "circle",
       paint: {
         "circle-radius": 6,
         "circle-color": color,
       },
-      filter: ["==", "Kategorie", category],
+      // filter: ["==", "Kategorie", category],
     });
 
     layerIDs.push(layerID);
@@ -107,11 +115,33 @@ map.on("load", async () => {
   filterInput.addEventListener("keyup", (e) => {
     const value = (e.target as HTMLInputElement).value.trim().toLowerCase();
 
-    // get layers from map
-    // const layers = map.getStyle().layers;
-
     for (const layerID of layerIDs) {
-      map.setFilter(layerID, null);
+      if (value === "") {
+        map.setFilter(layerID, null);
+        continue;
+      }
+
+      // Construct filter for each layer
+      let filter = ["any"];
+      const filteredPlaces: GeoJSON.Feature[] = places.features.filter(
+        (feature: GeoJSON.Feature) =>
+          feature.properties.Kategorie === layerID.split("-")[1]
+      );
+      for (const feature of filteredPlaces) {
+        const properties = feature.properties;
+        for (const key of ["Name", "Beschreibung"]) {
+          const property = properties[key];
+          if (
+            typeof property === "string" &&
+            property.toLowerCase().includes(value)
+          ) {
+            filter.push(["==", key, property]);
+            break;
+          }
+        }
+      }
+      map.setFilter(layerID, filter);
+      // map.setFilter(layerID, ["has", ["get", "Name"], value]);
     }
   });
 
