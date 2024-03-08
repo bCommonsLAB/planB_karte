@@ -106,6 +106,7 @@ map.on("load", async () => {
     input.addEventListener("change", toggleLayerVisibility(layerID));
     map.on("mouseenter", layerID, showPopupOnMapEvent());
     map.on("mouseleave", layerID, removePopupOnMapEvent());
+    // map.on("click", layerID, showPopupOnMapEvent());
   });
 
   const filterInput = document.getElementById(
@@ -224,12 +225,12 @@ function showPopupOnMapEvent(): (
     if (true) {
       popup_content += `<p><b>Öffnungszeiten</b>: ${öffnungszeiten}</p>`;
     }
-    if (false) {
-      popup_content += `<p><b>Properties</b>: <pre>${JSON.stringify(
-        properties,
-        null,
-        4
-      )}</pre> </p>`;
+    if (true) {
+      popup_content += `
+      <details>
+        <summary><b>Properties</b></summary>
+        <pre>${JSON.stringify(properties, null, 4)}</pre>
+      </details>`;
     }
 
     // Populate the popup and set its coordinates
