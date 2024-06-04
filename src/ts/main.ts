@@ -1,25 +1,16 @@
-import maplibregl, { convertFilter } from "maplibre-gl";
+import maplibregl, {
+  convertFilter,
+  LngLatLike,
+  VectorTileSource,
+} from "maplibre-gl";
 
 import { overpassToGeojson } from "./query_overpass.ts";
 import { GeoJSON } from "geojson";
 
+const map_options: maplibregl.MapOptions = getMapConfiguration();
+
 // Initialize the map
-const latLongBrixen: number[] = [11.6603, 46.7176];
-const map = new maplibregl.Map({
-  container: "map",
-  style:
-    "https://api.maptiler.com/maps/basic/style.json?key=Q5QrPJVST2pfBYoNSxOo",
-  // style: "http://localhost:8080/styles/basic-preview/style.json",
-  // style: "http://localhost:8080/styles/bright/style.json",
-  // style: "https://demotiles.maplibre.org/style.json", // style URL
-  // center: [8.5456, 47.3739],
-  center: latLongBrixen,
-  zoom: 13.5,
-  // pitchWithRotate: false, // Disable tilting the map
-  // touchZoomRotate: false, // Disable zooming and rotating the map
-  dragRotate: false, // Disable rotating the map
-  // dragPan: false, // Disable panning the map
-});
+const map = new maplibregl.Map(map_options);
 
 const filterGroup = document.getElementById("filter-group");
 
@@ -191,6 +182,33 @@ map.on("load", async () => {
     };
   }
 });
+async function getMapConfiguration(): Promise<maplibregl.MapOptions> {
+  let style = "http://localhost:8080/styles/basic-preview/style.json";
+  const style_maptiler =
+    "https://api.maptiler.com/maps/basic/style.json?key=Q5QrPJVST2pfBYoNSxOo";
+
+  // Check if the URL is reachable
+  try {
+    const response = await fetch(style);
+    if (!response.ok) {
+      style = style_maptiler;
+    }
+  } catch (error) {
+    style = style_maptiler;
+  }
+
+  const latLongBrixen: LngLatLike = { lon: 11.6603, lat: 46.7176 };
+
+  const map_options: maplibregl.MapOptions = {
+    container: "map",
+    style: style,
+    center: latLongBrixen,
+    zoom: 13.5,
+    pitchWithRotate: false, // Disable tilting the map
+  };
+  return map_options;
+}
+
 function removePopupOnMapEvent(): (
   ev: maplibregl.MapMouseEvent & {
     features?: maplibregl.MapGeoJSONFeature[] | undefined;
