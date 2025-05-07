@@ -1,27 +1,146 @@
-# Plan B Web Map
+# Plan B Karte mit MongoDB
 
-This is a simple web map application using MapLibre GL JS. It shows the locations in the [markers.json](src/markers.json) on a web map.
+Diese Anwendung zeigt Orte und Points of Interest auf einer interaktiven Karte. Die Daten werden in einer MongoDB-Datenbank gespeichert.
 
-## Getting Started
+## Setup
 
-To get this code to run on your local machine, follow these steps:
-1. Clone this repository
-2. Make sure node.js/yarn is installed on your machine
-3. Install the dependencies by running `yarn install` or `npm install`
-4. Run the development server by running `yarn start` or `npm start`
+1. Konfiguriere die MongoDB-Verbindung:
+   - Erstelle eine `.env`-Datei im `web`-Verzeichnis mit folgenden Inhalten:
+     ```
+     MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database
+     MONGODB_DATABASE_NAME=planB
+     ```
 
-## Components
+2. Importiere die Daten in MongoDB:
+   ```
+   cd web
+   node scripts/import-markers.js
+   ```
 
-This project consist of the following components:
-- [index.html](src/index.html): The main HTML file containing the structure of the web page
-- [main.ts](src/ts/main.ts): The main TypeScript file containing code to configure the map and load markers   
-- [markers.json](src/markers.json): A GeoJSON file containing the locations to be displayed on the map. The file was generated using QGIS from the google sheets data.
+3. Überprüfe die importierten Daten:
+   ```
+   node scripts/check-markers.js
+   ```
 
-This project is packed using Parcel Bundler. Parcel is a web application bundler, this makes sure that the code is bundled and minified for production in a way that all the dependencies are included in the final build, and the typescript code is transpiled to JavaScript. It provides the `yarn start` command to run the development server and the `yarn build` command to build the project for production.
+## Anwendung starten
 
-## Structure of the Web Map
-MapLibre GL JS is used to create the web map. When setting up a MapLibre GL JS map a style parameter is required to define the source of the geodata to render on the map as well as the style of the map. Currently this project uses the maptiler API to provide the map style. Alternatively it can also use the open source [tileserver-gl](https://github.com/maptiler/tileserver-gl) as the source of the map style and geodata. A reference implementation that automatically sets up a tileserver-gl instance using docker, has some basic styles preconfigured and serves the geodata from a mbtiles file can be found in [this](https://gitlab.com/raul.lezameta/planB_tileserver) tileserver-gl repository.
+```
+npm run dev
+```
 
-# Notes 
-## Automatic Deployment
-Automatic deployment to GitHub Pages is set up for this repository. Check the [publishwebsite.yml](.github/workflows/publishwebsite.yml) file for more information. Every time a commit is pushed to the `main` branch. The website is build to the using the yarn `predeploy` script and the `gh-pages` branch is updated with the new build using the `gh-pages` action.
+Die Anwendung ist dann unter http://localhost:3000 erreichbar.
+
+Der Admin-Bereich ist unter http://localhost:3000/admin/places verfügbar.
+
+## Datenstruktur
+
+Die Daten werden als GeoJSON-Features in der MongoDB-Collection `places` gespeichert. Die ursprüngliche Quelle `markers.json` wird nicht mehr verwendet.
+
+## API-Endpunkte
+
+- `GET /api/places` - Gibt alle Orte zurück
+- `GET /api/places?category=A` - Filtert Orte nach Kategorie
+
+## Verwaltung über die Admin-Oberfläche
+
+Die Admin-Oberfläche ermöglicht:
+- Anzeigen aller Orte
+- Filtern nach Kategorien
+- Suchen nach Namen
+
+## Entwicklung
+
+- Die Hauptseite mit der Karte befindet sich in `web/pages/index.tsx`
+- Die Kartenkomponente ist in `web/components/MapExplorer.tsx` und `web/components/PlanBMap/index.tsx`
+- Die MongoDB-Anbindung erfolgt in den API-Endpunkten und Server-Side-Rendering-Funktionen
+
+## Projektstruktur
+
+Das Repository ist in zwei Hauptteile gegliedert:
+
+- `lib/`: Die ursprüngliche Kartenimplementierung mit Parcel-Bundler
+- `web/`: Eine Next.js-Anwendung, die die Karte als Komponente verwendet
+
+## Ursprüngliche Kartenanwendung (lib/)
+
+Die ursprüngliche Anwendung ist eine einfache Webseite, die MapLibre GL JS verwendet, um Orte auf einer Karte anzuzeigen.
+
+### Installation
+
+```bash
+cd lib
+yarn install
+```
+
+### Entwicklungsserver starten
+
+```bash
+cd lib
+yarn start
+```
+
+Die Anwendung ist dann unter http://localhost:1234 verfügbar.
+
+### Produktions-Build erstellen
+
+```bash
+cd lib
+yarn build
+```
+
+## Next.js-Anwendung (web/)
+
+Die Next.js-Anwendung demonstriert, wie die Karte als Komponente in einer modernen Webanwendung verwendet werden kann.
+
+### Installation
+
+```bash
+cd web
+yarn install
+```
+
+### Entwicklungsserver starten
+
+```bash
+cd web
+yarn dev
+```
+
+Die Anwendung ist dann unter http://localhost:3000 verfügbar.
+
+### Produktions-Build erstellen
+
+```bash
+cd web
+yarn build
+yarn start
+```
+
+## Gemeinsames Git-Repository und Deployment
+
+Beide Anwendungen teilen sich dasselbe Git-Repository. Für das Deployment können sie jedoch separat konfiguriert werden:
+
+1. **GitHub Pages für die ursprüngliche Anwendung:**
+   Die ursprüngliche Anwendung kann über den vorhandenen GitHub Action Workflow auf GitHub Pages bereitgestellt werden.
+
+2. **Vercel/Netlify für die Next.js-Anwendung:**
+   Die Next.js-Anwendung kann über Dienste wie Vercel oder Netlify bereitgestellt werden, wobei das Stammverzeichnis auf `web/` gesetzt wird.
+
+## Marker anpassen
+
+Die Markerdaten befinden sich in JSON-Dateien:
+
+- Ursprüngliche Anwendung: `lib/src/markers.json`
+- Next.js-Anwendung: `web/data/markers.json`
+
+Das Format ist GeoJSON mit zusätzlichen Eigenschaften für jeden Punkt, darunter:
+- Name
+- Beschreibung
+- Kategorie (A, B oder C)
+- Koordinaten
+- Öffnungszeiten
+- Kontaktinformationen
+
+## Lizenz
+
+MIT 

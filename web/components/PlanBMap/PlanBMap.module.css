@@ -1,0 +1,124 @@
+/* Haupt-Kartenstile */
+.container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.map {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+}
+
+/* Checkbox-Filter-Stile */
+.filterGroup {
+  font: 12px/20px "Helvetica Neue", Arial, Helvetica, sans-serif;
+  font-weight: 600;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  border-radius: 3px;
+  width: 120px;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 5px;
+}
+
+.filterGroup input[type="checkbox"]:first-child + label {
+  border-radius: 3px 3px 0 0;
+}
+
+.filterGroup label:last-child {
+  border-radius: 0 0 3px 3px;
+  border: none;
+}
+
+.filterGroup input[type="checkbox"] {
+  display: none;
+}
+
+.filterGroup input[type="checkbox"] + label {
+  background-color: #3386c0;
+  display: block;
+  cursor: pointer;
+  padding: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+  text-transform: capitalize;
+}
+
+.filterGroup input[type="checkbox"] + label:hover,
+.filterGroup input[type="checkbox"]:checked + label {
+  background-color: #4ea0da;
+}
+
+.filterGroup input[type="checkbox"]:checked + label:before {
+  content: "✔";
+  margin-right: 5px;
+}
+
+/* Textfilter-Stile */
+.filterCtrl {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1;
+}
+
+.filterInput {
+  font: 12px/20px "Helvetica Neue", Arial, Helvetica, sans-serif;
+  width: 100%;
+  border: 0;
+  background-color: #fff;
+  margin: 0;
+  color: rgba(0, 0, 0, 0.5);
+  padding: 10px;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  width: 180px;
+}
+
+/* Popup-Stile */
+.maplibregl-popup {
+  max-width: 300px;
+}
+
+.maplibregl-popup-content {
+  padding: 15px;
+  font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+
+.maplibregl-popup-content h3 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+}
+
+.maplibregl-popup-content p {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.maplibregl-popup-content details {
+  margin-top: 10px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.maplibregl-popup-content details summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: #3386c0;
+}
+
+.maplibregl-popup-content pre {
+  max-height: 150px;
+  overflow: auto;
+  font-size: 12px;
+  background-color: #f5f5f5;
+  padding: 5px;
+  border-radius: 3px;
+} 

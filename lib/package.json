@@ -1,0 +1,24 @@
+{
+  "name": "plan_b",
+  "version": "1.0.0",
+  "source": "src/index.html",
+  "scripts": {
+    "start": "parcel",
+    "build": "parcel build",
+    "predeploy": "rm -rf dist && parcel build --no-source-maps --public-url ./",
+    "deploy": "gh-pages -d dist"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/geojson": "^7946.0.14",
+    "@types/node": "^20.11.21",
+    "buffer": "^6.0.3",
+    "gh-pages": "^6.1.1",
+    "parcel": "^2.11.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.7",
+    "maplibre-gl": "^4.0.2",
+    "osm2geojson-lite": "^0.9.4"
+  }
+}

@@ -1,24 +1,14 @@
 {
-  "name": "plan_b",
+  "name": "planb-karte",
   "version": "1.0.0",
-  "source": "src/index.html",
+  "description": "Interactive map for Plan B Brixen",
   "scripts": {
-    "start": "parcel",
-    "build": "parcel build",
-    "predeploy": "rm -rf dist && parcel build --no-source-maps --public-url ./",
-    "deploy": "gh-pages -d dist"
+    "dev": "cd web && npm run dev",
+    "build": "cd web && npm run build",
+    "start": "cd web && npm run start"
   },
-  "license": "MIT",
   "devDependencies": {
-    "@types/geojson": "^7946.0.14",
-    "@types/node": "^20.11.21",
-    "buffer": "^6.0.3",
-    "gh-pages": "^6.1.1",
-    "parcel": "^2.11.0"
-  },
-  "dependencies": {
-    "axios": "^1.6.7",
-    "maplibre-gl": "^4.0.2",
-    "osm2geojson-lite": "^0.9.4"
+    "@tailwindcss/line-clamp": "^0.4.4",
+    "@tailwindcss/postcss": "^4.1.5"
   }
 }
