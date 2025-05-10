@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Next.js Anwendung für Produktion
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/planB
+      - MONGODB_DATABASE_NAME=planB
+      - NODE_ENV=production
+    depends_on:
+      - mongodb
+      - mongo-init
+    restart: unless-stopped
+    volumes:
+      - ./web/data:/app/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+  # MongoDB Datenbank mit Authentifizierung
+  mongodb:
+    image: mongo:6
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-securepassword}
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+    command: ["--quiet", "--logpath", "/dev/null", "--auth"]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.30'
+          memory: 512M
+
+  # Initialisierung der MongoDB mit Daten
+  mongo-init:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.init
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/planB
+      - MONGODB_DATABASE_NAME=planB
+    depends_on:
+      - mongodb
+    restart: "no"
+    volumes:
+      - ./web/data:/app/data
+
+volumes:
+  mongo_data: 

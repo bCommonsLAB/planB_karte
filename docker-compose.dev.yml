@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  # Next.js Anwendung im Entwicklungsmodus
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/planB
+      - MONGODB_DATABASE_NAME=planB
+      - NODE_ENV=development
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev 

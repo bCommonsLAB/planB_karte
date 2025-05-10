@@ -1,0 +1,17 @@
+FROM node:18-alpine
+
+# Arbeitsverzeichnis im Container setzen
+WORKDIR /app
+
+# Abhängigkeiten installieren
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Anwendungscode wird über Volumes gemountet
+# Dies ermöglicht Hot-Reloading während der Entwicklung
+
+# Port freigeben
+EXPOSE 3000
+
+# Entwicklungsserver starten
+CMD ["npm", "run", "dev"] 

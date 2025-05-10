@@ -1,0 +1,15 @@
+FROM node:18-alpine
+
+# Arbeitsverzeichnis im Container setzen
+WORKDIR /app
+
+# Abhängigkeiten kopieren und installieren
+COPY package.json package-lock.json ./
+RUN npm install --only=production mongodb
+
+# Skripts und Daten kopieren
+COPY scripts/docker-init.js ./scripts/
+COPY data ./data/
+
+# Warte auf MongoDB und führe das Initialisierungsskript aus
+CMD sh -c "sleep 5 && node scripts/docker-init.js" 

@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Next.js Anwendung
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/planB
+      - MONGODB_DATABASE_NAME=planB
+      - NODE_ENV=production
+    depends_on:
+      - mongodb
+      - mongo-init
+    restart: unless-stopped
+    volumes:
+      - ./web/data:/app/data
+
+  # MongoDB Datenbank
+  mongodb:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+    command: ["--quiet", "--logpath", "/dev/null"]
+
+  # Initialisierung der MongoDB mit Daten
+  mongo-init:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.init
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/planB
+      - MONGODB_DATABASE_NAME=planB
+    depends_on:
+      - mongodb
+    restart: "no"
+    volumes:
+      - ./web/data:/app/data
+
+volumes:
+  mongo_data: 
