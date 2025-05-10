@@ -13,7 +13,15 @@ import { Feature, Geometry, GeoJsonProperties } from 'geojson';
 interface MarkerDocument {
   _id: any;
   type: string;
-  properties: Record<string, any>;
+  properties: {
+    Name: string;
+    Nome?: string;  // Italienisches Feld für Namen
+    Beschreibung: string;
+    Descrizione?: string;  // Italienisches Feld für Beschreibung
+    Kategorie: string;
+    Categoria?: string;
+    [key: string]: any;  // Weitere dynamische Felder
+  };
   geometry: {
     type: string;
     coordinates: number[];
@@ -36,11 +44,24 @@ export async function GET(request: Request) {
     // URL-Parameter auslesen (für Filteroptionen)
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
+    const search = searchParams.get('search');
     
     // Suchfilter erstellen
     const filter: Record<string, any> = {};
-    if (category) {
+    
+    // Kategoriefilter anwenden, wenn eine Kategorie ausgewählt wurde und nicht "all" ist
+    if (category && category !== 'all') {
       filter['properties.Kategorie'] = category;
+    }
+    
+    // Wenn eine Suche durchgeführt wird, in beiden Sprachversionen suchen
+    if (search) {
+      filter['$or'] = [
+        { 'properties.Name': { $regex: search, $options: 'i' } },
+        { 'properties.Nome': { $regex: search, $options: 'i' } },
+        { 'properties.Beschreibung': { $regex: search, $options: 'i' } },
+        { 'properties.Descrizione': { $regex: search, $options: 'i' } }
+      ];
     }
     
     // MongoDB-Verbindung herstellen
@@ -112,6 +133,15 @@ export async function POST(request: Request) {
       );
     }
     
+    // Leere italienische Felder initialisieren, falls nicht vorhanden
+    if (!newPlace.properties.Nome) {
+      newPlace.properties.Nome = "";
+    }
+    
+    if (!newPlace.properties.Descrizione) {
+      newPlace.properties.Descrizione = "";
+    }
+    
     // MongoDB-Verbindung herstellen
     const uri = process.env.MONGODB_URI;
     if (!uri) {
@@ -168,10 +198,15 @@ function createFilterQuery(params: URLSearchParams) {
     query['properties.Kategorie'] = category;
   }
   
-  // Nach Suchbegriff filtern
+  // Nach Suchbegriff filtern (in beiden Sprachversionen)
   const search = params.get('search');
   if (search) {
-    query['properties.Name'] = { $regex: search, $options: 'i' };
+    query['$or'] = [
+      { 'properties.Name': { $regex: search, $options: 'i' } },
+      { 'properties.Nome': { $regex: search, $options: 'i' } },
+      { 'properties.Beschreibung': { $regex: search, $options: 'i' } },
+      { 'properties.Descrizione': { $regex: search, $options: 'i' } }
+    ];
   }
   
   // Nahe einer bestimmten Position suchen

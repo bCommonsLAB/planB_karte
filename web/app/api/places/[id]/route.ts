@@ -13,7 +13,15 @@ import { Feature } from 'geojson';
 interface MarkerDocument {
   _id: ObjectId | string;
   type: string;
-  properties: Record<string, any>;
+  properties: {
+    Name: string;
+    Nome?: string;  // Italienisches Feld für Namen
+    Beschreibung: string;
+    Descrizione?: string;  // Italienisches Feld für Beschreibung
+    Kategorie: string;
+    Categoria: string;
+    [key: string]: any;  // Weitere dynamische Felder
+  };
   geometry: {
     type: string;
     coordinates: number[];

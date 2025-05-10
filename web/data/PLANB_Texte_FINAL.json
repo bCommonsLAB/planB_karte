@@ -1,0 +1,400 @@
+[
+    {
+        "category_de":"GEMÜTLICH GRÜN",
+        "category_it":"VERDE VIVIBILE",
+        "name_de": "Rappanlagen",
+        "name_it": "Giardini Rapp",
+        "description_de":"Das letzte Stück Land zwischen Rienz und Eisack. Für viele ein 'Energiepunkt'. Für alle, trotz des ständigen Hin und Her, ein geschätzter Ort der Ruhe, eingerahmt vom Rauschen der beiden Flüsse und den hohen, 1884 gepflanzten Bäumen.",
+        "description_it":"L'ultimo lembo di terra tra Rienza e Isarco. Per molti un 'punto energetico'. Per tutti, nonostante il continuo viavai, un prezioso luogo di tranquillità, incorniciato dallo scrosciare dei due fiumi e dalla melodia di foglie degli alti e maestosi alberi che risalgono al 1884."
+    },
+    {
+        "category_de":"GEMÜTLICH GRÜN",
+        "category_it":"VERDE VIVIBILE",
+        "name_de": "Alois-Pupp-Park",
+        "name_it": "Giardini Alois Pupp",  
+        "description_de":"Der einzige Brixner Park mit 'PPP'. Vorwiegend Public. Private für Raucher:innen. Partnerships wurden unter den alten Bäumen sowohl begonnen als auch beendet. Manchmal künstlerisch beleuchtet, sonst ein zentral gelegener Ort mit Bänken, Brunnen und Spielplatz – perfekt zum Verweilen.",    
+        "description_it":"L'unico parco di Bressanone con 'PPP'. Principalmente pubblico. Privato per fumatrici e fumatori. Per i partner: tra i vecchi alberi sono nate e finite molte relazioni. A volte è illuminato artisticamente, ma, di solito, con le sue panchine, il parco giochi e la fontana, offre un angolo tranquillo per rilassarsi nel pieno centro della città."
+    },
+    {
+        "category_de":"GEMÜTLICH GRÜN",
+        "category_it":"VERDE VIVIBILE",
+        "name_de": "Zur Wasserschöpfe",
+        "name_it": "Lungofiume",  
+        "description_de": "Ein kleines Stück Großstadt am Eisack. Wo der kühle Fluss die Alltagswelt ausblendet, wo unter der Sonne und auf dem Grill das Fleisch brutzelt. Hier finden Lese- und Wasserratten ihr Biotop, Familien und Freundeskreise feiern fröhlich. Fantastisch.",
+        "description_it": "Un piccolo angolo di metropoli sull'Isarco, dove il fresco fiume offre riparo dalla quotidianità. Qui trovano il loro habitat lettori e amanti dell'acqua, mentre sotto il sole e sulla griglia sfrigola la carne, e famiglie e allegre combriccole festeggiano. Fantastico."
+    },
+    {
+        "category_de":"GEMÜTLICH GRÜN",
+        "category_it":"VERDE VIVIBILE",
+        "name_de": "Zur Wasserschöpfe",
+        "name_it": "Lungofiume",  
+        "description_de": "Ein kleines Stück Großstadt am Eisack. Wo der kühle Fluss die Alltagswelt ausblendet, wo unter der Sonne und auf dem Grill das Fleisch brutzelt. Hier finden Lese- und Wasserratten ihr Biotop, Familien und Freundeskreise feiern fröhlich. Fantastisch.",
+        "description_it": "Un piccolo angolo di metropoli sull'Isarco, dove il fresco fiume offre riparo dalla quotidianità. Qui trovano il loro habitat lettori e amanti dell'acqua, mentre sotto il sole e sulla griglia sfrigola la carne, e famiglie e allegre combriccole festeggiano. Fantastico."
+    },
+
+    {
+        "category_de":"GEMÜTLICH GRÜN",
+        "category_it":"VERDE VIVIBILE",
+        "name_de": "Karlspromenade",
+        "name_it": "Karlspromenade",
+        "description_de": "Otto von Guggenberg ließ sie für seinen Patienten und Freund Karl, den letzten Habsburger Kaiser, errichten. Das Ergebnis: ein bequemer Spaziergang, der es ermöglicht, sich für eine Stunde über die alltäglichen Probleme zu erheben – ohne dabei die Stadt aus den Augen zu verlieren.",
+        "description_it": "Otto von Guggenberg la fece realizzare per il suo paziente e amico, l'ultimo imperatore asburgico Karl. Una comoda passeggiata per elevarsi un'oretta sopra i problemi quotidiani, senza comunque perdere di vista la città."
+    },
+
+    {
+        "category_de":"WACHSEN & WIRKEN",
+        "category_it":"CRESCERE IN COMUNE",
+        "name_de": "ELKI / Eltern-Kind-Zentrum und Pumuckl-Tauschmarkt",
+        "name_it": "Elki / Centro Genitori Bimbi e Mercatino dello scambio Pumuckl",
+        "description_de": "Treff für Eltern mit Babys und Kids zum Spielen, Austauschen und Zeitverbringen. Für bewusste Aktivitäten: Familientage, Kurse, Vorträge und spezielle Angebote für Schwangere. Für bewussten Konsum: ein Second-Hand-Tauschmarkt mit Kinderkleidern und vielem mehr.",
+        "description_it": "Luogo d'incontro per genitori con bambini, dove poter giocare e trascorrere del tempo insieme. Uno spazio dedicato ad attività: corsi, conferenze, giornate in famiglia, iniziative per gestanti. Per promuovere un consumo responsabile è disponibile un mercatino dell'usato con vestiti per bambini e molto altro."
+    },
+{
+    "category_de":"WACHSEN & WIRKEN",
+    "category_it":"CRESCERE IN COMUNE",
+    "name_de": "TPZ / Theaterpädagogisches Zentrum ",
+    "name_it": "TPZ / Centro pedagogico teatrale",
+    "description_de": "Kindertheater, Schreibwerkstatt, Sozialgenossenschaft und das Kompetenzzentrum für Theaterpädagogik. Lustig oder ernst, verspielt oder vernünftig, laut oder leise, traditionell oder experimentell: Theater in all seinen Facetten. Echt Toll, echt Profis, echt Zuschauer:innen.",
+    "description_it": "Teatro per bambini, laboratorio di scrittura, cooperativa sociale e centro di competenza per la pedagogia teatrale. Divertente o serio, giocoso o riflessivo, chiassoso o silenzioso, tradizionale o sperimentale: teatro in tutte le sue sfaccettature. Travolgente, Professionale, Zampillante."
+},
+
+
+{
+    "category_de":"WACHSEN & WIRKEN",
+    "category_it":"CRESCERE IN COMUNE",
+    "name_de": "Kass & Connection / Jugendzentren",
+    "name_it": "Kass & Connection / Centri di cultura giovanile",
+    "description_de": "Zwei Orte für Jugendliche, um abzuhängen, zu lachen und sich zu unterhalten. Musik, Tanz, Theater, Murales und Upcycling. Nachhaltig, vielfältig und kreativ. Young Action!",
+    "description_it": "Due luoghi per i giovani, per stancarsi, ridere e passare del tempo insieme. Musica, danza, teatro, murales e upcycling. Sostenibile, vario e creativo. Young Action!"
+},
+
+{
+    "category_de":"WACHSEN & WIRKEN",
+    "category_it":"CRESCERE IN COMUNE",
+    "name_de": "Montessorischulen / Scuole Montessori",
+    "name_it": "Montessorischulen / Scuole Montessori",
+    "description_de": "R-E-S-P-E-C-T, tell me what it means to Mary! Rücksicht nehmen, Erfahrungsräume öffnen, Selbstwirksamkeit fördern, Potenziale erkennen, Empathie entwickeln, Kreativität leben, Toleranz üben. Die Montessori-Schule war Magdalenas Schule und ihre Werte waren Magdas Werte!",
+    "description_it": "R-E-S-P-E-C-T, tell me what it means to Mary! Riguardo verso gli altri, Empatia e comunità, Sviluppo individuale, Potenzialità riconosciute, Esplorazione dell'ambiente, Collaborazione e Creatività, Tolleranza e pluralismo. La scuola Montessori è stata la scuola di Magdalena e i suoi valori erano i valori di Magda!"
+},
+
+{
+    "category_de":"BÜHNEN BILDER BÜCHER",
+    "category_it":"PALCHI PITTURA PAROLE",
+    "name_de": "Astra / Kulturzentrum",
+    "name_it": "Astra / Centro culturale",
+    "description_de": "Was einmal ein Raum zur Ertüchtigung der Jugend unter dem faschistischen Regime war, ist heute ein freier Kulturraum. Das Astra ist Veranstaltungslocation für verschiedenste Formate: Hier finden Filmvorführungen, Konzerte, Vorträge, Feste und ganz viel mehr statt.",
+    "description_it": "Quello che una volta sotto il regime fascista era un luogo d'indottrinamento della gioventù, oggi è uno spazio libero dedicato alla cultura. L'Astra è una location polifunzionale che ospita eventi di ogni tipo: proiezioni di film, concerti, conferenze, feste e molto altro."
+},
+
+{
+    "category_de":"BÜHNEN BILDER BÜCHER",
+    "category_it":"PALCHI PITTURA PAROLE",
+    "name_de": "Dekadenz & Tschumpus",
+    "name_it": "Dekadenz & Tschumpus",
+    "description_de": "Seit 1980 lädt der Kleinkunst-Keller Dekadenz rund siebzigmal im Jahr zum Lauschen und Lachen ein – bei einem Getränk der Wahl. In den Sommermonaten bleibt die Dekadenz geschlossen und überlässt das Publikum dem Kultursommer im ehemaligen Gefängnis Tschumpus.",
+    "description_it": "Fondato nel 1980 in una storica cantina, questo piccolo teatro apre le sue porte circa 70 volte all'anno con una selezione di concerti e spettacoli da godersi sorseggiando un bicchiere della propria bevanda preferita. Durante i mesi estivi, il Dekadenz chiude i battenti e invita il pubblico a partecipare al Kultursommer nell'ex carcere Tschumpus."
+},
+
+{
+    "category_de":"BÜHNEN BILDER BÜCHER",
+    "category_it":"PALCHI PITTURA PAROLE",
+    "name_de": "Bibliotheken",
+    "name_it": "Biblioteche",
+    "description_de": "Mit dem Aufblättern des ersten Bilderbuchs eintauchen in eine nie endende Leidenschaft: von der Jugend- und Spielabteilung über den täglichen Zeitschriftensaal bis zu den hohen Regalen mit den wissenschaftlichen Werken. Fachbibliothek Eine Welt, Stadt-, Universitäts- und Seminarbibliothek machen es möglich.",
+    "description_it": "Sfogliando il primo libro illustrato, immergetevi in una passione che non vi abbandonerà mai: dal reparto giovani e giochi, attraverso la sala dei giornali quotidiani, fino agli alti scaffali delle opere accademiche. Le biblioteche Un Solo Mondo, Civica, Universitaria e del Seminario Maggiore rendono possibile tutto ciò."
+},
+
+{
+    "category_de":"BÜHNEN BILDER BÜCHER",
+    "category_it":"PALCHI PITTURA PAROLE",
+    "name_de": "Circolo artistico S. Erardo",
+    "name_it": "Circolo artistico S. Erardo",
+    "description_de": "Ein lebendiger Treffpunkt für Kunst und Kultur, wo regelmäßig Ausstellungen, Workshops und Veranstaltungen organisiert werden, die lokale Künstler:innen fördern und Austausch ermöglichen. Ein Ort, der Inspiration und Gemeinschaft verbindet.",
+    "description_it": "Un vivace punto d'incontro per l'arte e la cultura, dove mostre, workshop ed eventi valorizzano gli artisti locali e promuovono lo scambio di idee, sogni e opinioni. Un luogo in cui ispirazione e comunità si fondono."
+},
+
+{
+    "category_de":"REUSE & REPAIR",
+    "category_it":"RIPARARE E RECUPERARE",
+    "name_de": "fundus punkt",
+    "name_it": "fundus punto",
+    "description_de": "Dich schick kleiden und ein Krankenhaus zum Lächeln bringen? Das ist einfach in der liebevoll geführten Second-Hand-Boutique des Vereins Comedicus. Außerdem kannst du dort zum Karneval das Kostüm deiner Träume finden und nochmal lächeln.",
+    "description_it": "Vestirsi chic e far sorridere un intero ospedale? È possibile grazie alla boutique di seconda mano curata amorevolmente dall'associazione Comedicus. Durante il carnevale, qui puoi trovare il travestimento dei tuoi sogni e continuare a regalare sorrisi."
+},
+
+{
+    "category_de":"REUSE & REPAIR",
+    "category_it":"RIPARARE E RECUPERARE",
+    "name_de": "REX / Material und Dinge",
+    "name_it": "REX / Materiali e cose",
+    "description_de": "Wenn ich sterbe, möchte ich ins REX, denn dort erhält alles die Chance auf ein zweites Leben. Möbel, Geräte, Spielzeug, Sportartikel, Geschirr, Musikinstrumente – und im Food-Sharing-Projekt sogar abgelaufene Lebensmittel.",
+    "description_it": "Quando morirò, vorrei finire al REX. Lì tutto ottiene la possibilità di avere una seconda vita: mobili, elettrodomestici, giocattoli, articoli sportivi, stoviglie, strumenti musicali e, grazie al progetto di recupero alimentare, anche cibo invenduto."
+},
+
+{
+    "category_de":"REUSE & REPAIR",
+    "category_it":"RIPARARE E RECUPERARE",
+    "name_de": "Flohmärkte",
+    "name_it": "Mercatini delle pulci",
+    "description_de": "Für diejenigen, die schon alles haben, bieten sie das Vergnügen, sich im Unnützen zu verlieren und zwischen dem Krempel kuriose Gegenstände zu entdecken. Wer etwas braucht, wird sicherlich fündig, und wer zu viel hat, sollte ein paar Kisten packen und mit einem Stand teilnehmen!",
+    "description_it": "Per chi già ha tutto, offrono il piacere di perdersi nell'inutile e scoprire, tra le cianfrusaglie, oggetti curiosi. Chi invece è alla ricerca di qualcosa di preciso, troverà sicuramente ciò di cui ha bisogno, mentre chi ha troppo prepari qualche scatolone e partecipi con una bancarella!"
+},
+
+{
+    "category_de":"REUSE & REPAIR",
+    "category_it":"RIPARARE E RECUPERARE",
+    "name_de": "Repair Café",
+    "name_it": "Repair Café",
+    "description_de": "Was macht man mit einem Stuhl, der nur noch wackelt? Mit einem Toaster, der für nichts mehr brennt? Mit einem Pulli, den Motten zum Anbeißen fanden? Wegwerfen? Konnsch dor vorstellen! Komm ins Repair Café und alles wird gut! Einmal im Monat im Kolping!",
+    "description_it": "Cosa fare di una sedia con la gamba rotta, un tostapane che non si accende o un maglione mangiato dalle tarme? Usa e getta? Figuriamoci! Fate un salto al Repair Café e tutto tornerà come nuovo! Una volta al mese al Kolping!"
+},
+
+{
+    "category_de":"HELFENDE HÄNDE",
+    "category_it":"AIUTO ATTIVO",
+    "name_de": "Übernachtungsstätte",
+    "name_it": "Struttura di acco-glienza temporanea",
+    "description_de": "Niederschwellige Einrichtung für Menschen, die vorübergehend von Wohnungslosigkeit betroffen sind. Sie bietet Schlafplätze, Waschmöglichkeiten sowie einen Gemeinschaftsraum und ist von Spätherbst bis Frühling geöffnet.",
+    "description_it": "Struttura a bassa soglia dedicata a persone temporaneamente senzatetto. Offre posti letto, bagni, una sala comune ed è aperta da fine autunno a primavera."
+},
+
+
+{
+    "category_de":"HELFENDE HÄNDE",
+    "category_it":"AIUTO ATTIVO",
+    "name_de": "Beratungsstelle",
+    "name_it": "Consultorio",
+    "description_de": "Beratung für Frauen in Gewaltsituationen. Beratung für Frauen, die körperliche, psychische, sexualisierte und/oder ökonomische Gewalt erfahren haben, noch erleben oder davon bedroht sind und sich davor schützen möchten.",
+    "description_it": "Consulenza per donne in situazioni di violenza. Consulenza per donne che vivono situazioni di violenza fisica, psicologica, sessuale e/o economica, o che ne sono minacciate e hanno bisogno di protezione."
+},
+
+{
+    "category_de":"HELFENDE HÄNDE",
+    "category_it":"AIUTO ATTIVO",
+    "name_de": "Vinzenzverein",
+    "name_it": "comunità vincenziana",
+    "description_de": "Hilft als Teil der weltweiten Vinzenzgemeinschaft Menschen in finanziellen Notlagen schnell und unbürokratisch. Zudem betreut er die Kleiderkammer, wo Kleidung, Decken und vieles mehr abgegeben und kostenlos weiterverteilt werden.",
+    "description_it": "Fa parte della comunità vincenziana mondiale e offre un aiuto rapido e a bassa soglia a persone in difficoltà finanziarie. Inoltre, gestisce la Kleiderkammer, dove è possibile donare abiti, coperte e altri articoli, che vengono poi distribuiti gratuitamente."
+},
+
+{
+    "category_de":"HELFENDE HÄNDE",
+    "category_it":"AIUTO ATTIVO",
+    "name_de": "Haus Maria Hueber / Domus und Essensausgabe",
+    "name_it": "Haus Maria Hueber / Domus e Distribuzione pasti",
+    "description_de": "Bietet Menschen in Notsituationen jeden Tag ein warmes Mittagessen, die Möglichkeit zu duschen und ihre persönliche Wäsche zu waschen, sowie Berater:innen, die zuhören und weiterhelfen. Offre alle persone in situazioni di emergenza un pasto caldo quotidiano, la possibilità di fare una doccia, lavare la propria biancheria e di rivolgersi a consulenti pronti ad ascoltare e fornire supporto. Sono disponibili anche alcuni piccoli appartamenti come alloggi temporanei.",
+    "description_it": "Offre alle persone in situazioni di emergenza un pasto caldo quotidiano, la possibilità di fare una doccia, lavare la propria biancheria e di rivolgersi a consulenti pronti ad ascoltare e fornire supporto. Sono disponibili anche alcuni piccoli appartamenti come alloggi temporanei."
+},
+
+{
+    "category_de":"SPIELEN SPRECHEN SPEISEN",
+    "category_it":"SERATE IN SOCIETÀ",
+    "name_de": "PubQuiz",
+    "name_it": "PubQuiz",
+    "description_de": "Im Astra (C1) versammeln sich monatlich Spielwütige zum fröhlichen Quizzen. Die Fragen werden liebevoll vom Moderatoren-Duo zusammengestellt und reichen von Pop bis Politik. Wer ohne Gruppe kommt, findet eine. Gesprochen wird Englisch. Drinks gibt es natürlich auch.",
+    "description_it": "All'Astra (C1) giocatori accaniti si ritrovano mensilmente per partecipare a divertenti quiz. Le domande, preparate con cura e passione dal duo di moderatori, spaziano dalla cultura pop alla politica. Chi arriva senza gruppo, ne può trovare uno sul posto. Il gioco si svolge in inglese e naturalmente non mancano i drinks."
+},
+
+
+{
+    "category_de":"SPIELEN SPRECHEN SPEISEN",
+    "category_it":"SERATE IN SOCIETÀ",
+    "name_de": "Interkulturelles Abendessen",
+    "name_it": "Cena interculturale",
+    "description_de": "Bewohner:innen des HdS – Haus der Solidarität 'Luis Lintner' (H1) kochen auf und laden ein, an ihrem Tisch Platz zu nehmen. Die Gerichte stammen meist aus der Region, in denen die Köch:innen aufgewachsen sind – von afghanisch bis zypriotisch. Einmal im Monat bei freier Spende.",
+    "description_it": "Gli abitanti della Casa della Solidarietà (CdS) 'Luis Lintner' (H1) cucinano e invitano gli ospiti a condividere la loro tavola. Dall'Afghanistan allo Zimbabwe, i piatti serviti riflettono le tradizioni culinarie dei luoghi in cui le cuoche e i cuochi sono cresciuti. Un appuntamento mensile, con offerta libera."
+},
+
+
+{
+    "category_de":"SPIELEN SPRECHEN SPEISEN",
+    "category_it":"SERATE IN SOCIETÀ",
+    "name_de": "Freitagsalon",
+    "name_it": "Salotto del venerdì",
+    "description_de": "Ausnahmslos jeden letzten Freitag im Monat wird dieses Forum (un)gepflegter Debattenkultur eröffnet. Wechselnde Gäste bringen ihr Thema ein und treten darüber mit der kritischen Bürger:innenschaft in Dialog. Austragungsort ist die Stadtbibliothek Brixen (C3).",
+    "description_it": "Immancabilmente ogni ultimo venerdì del mese viene aperto questo forum di cultura del dibattito convenzionale (e non). Relatori sempre diversi presentano i loro temi e dialogano con il pubblico critico. L'attuale sede è la Biblioteca Civica di Bressanone (C3)."
+},
+{
+    "category_de":"SPIELEN SPRECHEN SPEISEN",
+    "category_it":"SERATE IN SOCIETÀ",
+    "name_de": "Boccia",
+    "name_it": "Bocce",
+    "description_de": "Von Jung bis Junggeblieben – im Club Anziani Millan Seniorenclub treffen sich Boccia-Begeisterte von 0 bis 99+. Ob Großeltern mit ihren Enkel:innen oder neugierige Neulinge: Am Dienstagnachmittag und Samstag rollen die Kugeln, und die Stimmung ist bestens!",
+    "description_it": "Da ragazzi giovani a chi è rimasto giovane nel cuore: al Club Anziani Millan Seniorenclub si ritrovano gli appassionati di bocce dagli 0 agli over 99. Che siano nonni con i loro nipotini o principianti curiosi, il martedì pomeriggio e il sabato le bocce rotolano e l'atmosfera è spaziale!"
+},
+{
+    "category_de":"BÜRGER:IN BEWEGUNG",
+    "category_it":"CITTADINANZA CRITICA",
+    "name_de": "b*coop / Genossenschaft Brixen",
+    "name_it": "b*coop / Cooperativa Bressanone",
+    "description_de": "Eine neue Wirtschaftsweise gesucht? Hier wird sie gefunden! Kooperation im Sinn und ein Stück näher an der Utopie: ob Gemüsegarten oder Wohnen, vom Inkubator neuer Ideen bis zum gemütlichen Gemeinschaftstreffpunkt. Bring deine Idee, b*creative, b*cooperative!",
+    "description_it": "In cerca di un'economia alternativa? Siete nel posto giusto! Al centro c'è la cooperazione, che si avvicina un po' anche all'utopia. Che si tratti di un orto, di un'abitazione, di un incubatore di nuove idee o di un accogliente luogo d'incontro, porta la tua idea: b*creative, b*cooperative!"
+},
+{
+    "category_de":"BÜRGER:IN BEWEGUNG",
+    "category_it":"CITTADINANZA CRITICA",
+    "name_de": "heimat Brixen",
+    "name_it": "heimat Bressanone",
+    "description_de": "Einmischen, mitmischen, aufmischen: Ohne Bewegung lebt keine Demokratie, und die brauchen wir, um uns heimisch zu fühlen! Ob Bücherwürmer oder Kulturliebende – bei heimat BBP findet mensch eine spannende Community, spannende Gespräche, spannende Vorträge.",
+    "description_it": "Immischiarsi, immedesimarsi, rimescolarsi: senza movimento non c'è democrazia e noi ne abbiamo bisogno per sentirci a casa! Che siate topi da biblioteca o amanti della cultura, all'heimat BBP troverete una comunità appassionata, parteciperete a discussioni coinvolgenti e ascolterete relatori stimolanti."
+},
+
+{
+    "category_de":"BÜRGER:IN BEWEGUNG",
+    "category_it":"CITTADINANZA CRITICA",
+    "name_de": "OEW / Organisation für Eine solidarische Welt",
+    "name_it": "OEW / Organizzazione per Un mondo solidale",
+    "description_de": "Kann man eine solidarische Welt organisieren? Ja! Mit Geschick werfen sich Haupt- und Ehrenamtliche in Projekte – ob Bildungsüberfälle oder Themenwochen, in Schulen und auf Straßen. Was nachhaltig, sozial und fair ist, findet hier ein Megafon.",
+    "description_it": "È possibile organizzare un mondo solidale? Sì! Personale a tempo pieno e volontari collaborano con entusiasmo e competenza a svariati progetti: dalla guerriglia educativa, alle settimane a tema, fino ad attività nelle scuole e nelle strade. Tutto ciò che è sostenibile, sociale e giusto trova qui il suo megafono."
+},
+{
+    "category_de":"BÜRGER:IN BEWEGUNG",
+    "category_it":"CITTADINANZA CRITICA",
+    "name_de": "Freiwilligendienst Caritas",
+    "name_it": "volontariato caritas",
+    "description_de": "Ob Selbstverwirklichung, Altruismus oder persönliche Weiterentwicklung – bei der Caritas können sich Menschen jeden Alters sinnvoll einbringen. Wer Zeit verschenken möchte, findet hier garantiert eine begeisternde Aufgabe – bei der Caritas selbst oder ihren Partnern. Mach mit und schenke Sinn!",
+    "description_it": "Che si tratti di autorealizzazione, altruismo o sviluppo personale, persone di tutte le età possono offrire un contributo significativo alla Caritas. Chi desidera donare il proprio tempo troverà qui delle attività stimolanti, sia con la Caritas stessa, sia con i suoi partner. Partecipate e date un significato profondo al vostro impegno!"
+},
+{
+    "category_de":"GEMEINSCHAFTLICH GERECHT",
+    "category_it":"SOCIALI E SOLIDALI",
+    "name_de": "HdS 'Luis Lintner' / Haus der Solidarität ",
+    "name_it": "CdS 'Luis Lintner' / Casa della Solidarietà",
+    "description_de": "Hilft Menschen in Notsituationen, gibt Unterkunft und begleitet im Alltag. Es bietet verschiedenen Organisationen Arbeitsräume und Entfaltungsmöglichkeiten, ist ein Nest für neue Ideen und Heimat des kunterbunten zugluft-Festes.",
+    "description_it": "Sostiene le persone in situazioni d'emergenza, offrendo loro un alloggio e accompagnandole nella gestione della vita quotidiana. Mette a disposizione spazi lavorativi e offre occasioni di crescita a diverse organizzazioni. Inoltre, è un'incubatrice di nuove idee nonché sede del festival multiculturale zugluft."
+},
+{
+    "category_de":"GEMEINSCHAFTLICH GERECHT",
+    "category_it":"SOCIALI E SOLIDALI",
+    "name_de": "Vintlerhof Biosozialhof",
+    "name_it": "Fattoria bio-sociale",
+    "description_de": "Leben und Lebensmittel. Am Vintlerhof begegnen sich Menschen, Tiere und Pflanzen, alles wächst und kooperiert. Hofladen, Spieletreff, Gästezimmer, Arbeitsintegration, tiergestützte Interventionen, Waldkindergarten und -kita: Eine grüne Chance!",
+    "description_it": "Vita e viveri. Il Vintlerhof è un luogo d'incontro tra persone, animali e piante, in cui tutto cresce e collabora. Punto di vendita durante il giorno e la sera ritrovo ludico. Offre inoltre alloggi, promuove progetti di integrazione lavorativa, interventi assistiti con animali, una scuola materna nel bosco e un asilo nido."
+},
+{
+    "category_de":"GEMEINSCHAFTLICH GERECHT",
+    "category_it":"SOCIALI E SOLIDALI",
+    "name_de": "WunderBar",
+    "name_it": "WunderBar",
+    "description_de": "Im Werkstattladen der Kreativstätte für Menschen mit Beeinträchtigung lädt die WunderBAR mit köstlich-frischen Säften, Kaffee und Kuchen zu wunderbaren Begegnungen. Manchmal auch Veranstaltungsort.",
+    "description_it": "Nel negozio-laboratorio del centro creativo per persone con disabilità, il WunderBAR invita a meravigliosi momenti di incontro offrendo deliziosi succhi freschi, caffè e torte. Occasionalmente funge anche da location per eventi speciali."
+},
+{
+    "category_de":"GEMEINSCHAFTLICH GERECHT",
+    "category_it":"SOCIALI E SOLIDALI",
+    "name_de": "Weltladen",
+    "name_it": "Bottega del mondo",
+    "description_de": "Lädt in ansprechendem Ambiente ein, fair gehandelte Produkte zu entdecken, die internationalen Produzent:innen gerechte Arbeitsbedingungen garantieren. Ob Bananen, Kaffee, Olivenöl, Müsli, Bekleidung, Geschirr und mehr – shoppe guten Gewissens hemmungslos!",
+    "description_it": "In un ambiente accogliente si scoprono prodotti equosolidali che garantiscono condizioni di lavoro giuste a produttori di tutto il mondo. Banane, caffè, cioccolato, olio d'oliva, sughi, abbigliamento, stoviglie e molto altro ancora: shopping sfrenato, ma responsabile!"
+},
+{
+    "category_de":"BREITE BILDUNG",
+    "category_it":"FORMAZIONE FENOMENALE",
+    "name_de": "VHS",
+    "name_it": "VolksHochSchule",
+    "description_de": "Alles Wissen dem Volk! Macht das Leben in Brixen attraktiver, kreativer, vielfältiger und lebenswerter. Weiterbildung auf höchstem Niveau in Sprachen, Kultur & Gesellschaft, Beruf, EDV & Multimedia, Gesundheit sowie Hobby & Freizeit.",
+    "description_it": "Sapere al popolo! Contribuisce a rendere la vita a Bressanone più attraente, creativa, varia e vivibile. Offre formazione continua di altissimo livello nei settori della cultura e della società, ma anche linguistica, professionale, informatica e multimediale, della salute, così come per hobby e tempo libero."
+},
+
+{
+    "category_de":"BREITE BILDUNG",
+    "category_it":"FORMAZIONE FENOMENALE",
+    "name_de": "Cusanus-Akademie",
+    "name_it": "Accademia Cusanus",
+    "description_de": "In der Cusanus-Akademie sind alle Menschen willkommen: wissensdurstige, weltoffene, werteorientierte. Unter dem Motto 'Bildung und Begegnung, Dialog und Erleben' wird in der Cusanus-Akademie gebildet, gekurst, diskutiert, spiritualisiert, gespeist und genächtigt.",
+    "description_it": "Nell'Accademia Cusanus tutte le persone curiose, aperte al mondo e legate a dei valori sono benvenute. Seguendo il motto 'Educazione e Incontro, Dialogo ed Esperienza' l'Accademia offre un luogo in cui si può imparare, partecipare a dei corsi, discutere, vivere la spiritualità, mangiare e pernottare."
+},
+{
+    "category_de":"BREITE BILDUNG",
+    "category_it":"FORMAZIONE FENOMENALE",
+    "name_de": "Jukas / Bildungshaus",
+    "name_it": "Jukas / Centro di formazione",
+    "description_de": "Bildung inspiriert. Bildung für Erwachsene, Kinder und Jugendliche in verschiedenen Formaten: Kurse, Seminare, Werkstätten, Erlebniswochen und Festivals. Von Musik und Kunst zu Technik und Handarbeit, vom Erzählen in Wort und Bild zu Schönheit innen und außen.",
+    "description_it": "L'educazione ispira. Viene offerta formazione per adulti, bambini e giovani in diverse modalità: corsi, seminari, laboratori, settimane comunitarie e festival. Dalla musica all'arte, dalla tecnologia all'artigianato, dalla narrazione con parole e immagini alla scoperta della bellezza interiore ed esteriore."
+},
+{
+    "category_de":"BREITE BILDUNG",
+    "category_it":"FORMAZIONE FENOMENALE",
+    "name_de": "Sprachentreffs",
+    "name_it": "Incontri linguistici",
+    "description_de": "Vertiefe deine Sprachkenntnisse in angenehmer Atmosphäre in einem Lokal. Konversation in Englisch, Spanisch, Französisch oder Italienisch an verschiedenen Tischen. Setz dich ungezwungen dazu und plaudere mit in aperitivo language. Cheers, Salud, Santé, Salute!",
+    "description_it": "Approfondisci le tue conoscenze linguistiche nell'atmosfera accogliente di un bar brissinese. Conversazioni in inglese, spagnolo, francese o italiano si svolgono ai tavoli dedicati alle diverse lingue straniere. Siediti liberamente e partecipa alla conversazione nella lingua dell'aperitivo. Cheers, Salud, Santé, Salute!"
+},
+
+{
+    "category_de":"FIT & FRÖHLICH",
+    "category_it":"PALLEGGIARE E PALESTRARSI",
+    "name_de": "Mozart Muscle Beach / Don-Giuseppe-Franco-Park",
+    "name_it": "Mozart Muscle Beach / Parco Don Giuseppe Franco",
+    "description_de": "Pumpe und pimpe deinen Body for free! Ein gut bestückter Muskelpark für Muskelpakete oder jene, die es noch werden wollen. Verfeinere am Pumptrack deine Skills auf dem unmotorisierten Gefährt deiner Wahl, verausgabe dich an den Eisenstangen oder beim Teqball. ",
+    "description_it": "Allena e rafforza il tuo corpo gratuitamente! Un parco calisthenics, ideale sia per chi è già muscoloso, sia per chi vuole diventarlo. Affina le tue abilità sulla pump track utilizzando un mezzo non motorizzato a scelta, allenati alle sbarre di ferro o divertiti con una partita a Teqball."
+},
+{
+    "category_de":"FIT & FRÖHLICH",
+    "category_it":"PALLEGGIARE E PALESTRARSI",
+    "name_de": "Campill / Freizeitpark ",
+    "name_it": "Campill / Parco ricreativo",
+    "description_de": "Die Sonne scheint und zu Hause plagen dich Strandsehnsucht und Couchflucht? Schwing dich aufs Rad und ab die Füße in den Sand des Volleyballplatzes! Doch aufgepasst, dass dein Aufschlag nicht im Basketballfeld, Calisthenics-Park, Bolzplatz oder Kinderspielplatz landet.",
+    "description_it": "Fuori splende il sole risvegliando la nostalgia della spiaggia e la voglia di scappare dal divano? Salta in sella alla tua bici e corri a infilare i piedi nella sabbia del campo da pallavolo! Ma fai attenzione che la tua battuta non finisca nel campo da basket, da calcio, nell'area calisthenics o nel parco giochi per bambini."
+},
+
+{
+    "category_de":"FIT & FRÖHLICH",
+    "category_it":"PALLEGGIARE E PALESTRARSI",
+    "name_de": "Lido / Naherholungsgebiet Fischzuchtteich",
+    "name_it": "Lido / Parco Laghetto",
+    "description_de": "Ein Universum im Kleinformat, nicht nur für die Kleinsten: Ziegen, Flusskrebse, Ballspiele und schattige Bäume. Der Lidopark bietet einen spannenden Naherholungsort. Neben dem öffentlichen Spielplatz führt der VKE - Verein für Kinderspielplätze und Erholung das SpielHaus.",
+    "description_it": "Un universo in scala ridotta, non solo per i più piccoli: capre, gamberi di fiume, giochi con la palla e alberi ombrosi. Il Parco Lido offre un'emozionante area ricreativa locale. Oltre al parco giochi pubblico, il VKE - Associazione campi gioco e ricreazione gestisce la CasaGioco."
+},
+
+{
+    "category_de":"FIT & FRÖHLICH",
+    "category_it":"PALLEGGIARE E PALESTRARSI",
+    "name_de": "Mahr / Klettergarten ",
+    "name_it": "Mahr / Palestra di roccia",
+    "description_de": "Man könnte glauben, der Klettergarten an der Mahr sei unerschöpflich. Hier gibt es spannende Plattenkletterei in den Schwierigkeitsgraden 4 bis 8b zu entdecken! Auch ein Trainingsklettersteig ist vorhanden, für eine schnelle und sichere Kletterrunde, wenn's mal ohne Seil sein soll.",
+    "description_it": "La palestra di roccia sopra La Mara sembra davvero inesauribile! Qui potrete cimentarvi in emozionanti arrampicate d'aderenza con gradi di difficoltà dal 4 all'8b. Per chi cerca un rapido allenamento senza corda è disponibile anche una via ferrata."
+},
+
+{
+    "category_de":"WÜNSCHEN WIRKT WUNDER",
+    "category_it":"SOGNI E SPERANZE",
+    "name_de": "Essbare Stadt",
+    "name_it": "Città edibile",
+    "description_de": "Der Kreisverkehr schmeckt köstlich, vom Flussufer kommt mein Obst und das Salatgewürz hole ich mir auf dem Domplatz. Eine Stadt, die ihre Bewohner:innen gemeinsam be-garteln, die für den kleinen Hunger zwischendurch immer eine Lösung hat, die blüht, die grünt, die wächst.",
+    "description_it": "La rotonda ha un sapore delizioso, la mia frutta viene dalla riva del fiume e il condimento per l'insalata lo prendo da piazza Duomo. Una città che i suoi abitanti coltivano insieme, che ha sempre una soluzione per i buchi nello stomaco, che fiorisce, verdeggia e cresce."
+},
+
+{
+    "category_de":"WÜNSCHEN WIRKT WUNDER",
+    "category_it":"SOGNI E SPERANZE",
+    "name_de": "Autofreie Stadt",
+    "name_it": "Città senza automobili",
+    "description_de": "An den Stadteinfahrten stellen wir den Motor ab und bewegen uns zu Fuß, mit dem Fahrrad, den kostenlosen Stadtbussen oder auf einem Dinosaurier-Rücken fort. Aufatmen in Südtirols erster autofreier Stadt!",
+    "description_it": "Spegniamo il motore all'ingresso della città e muoviamoci a piedi, in bici, con gli autobus gratuiti o sul dorso di un dinosauro. Respiriamo a fondo e godiamoci la prima città libera dalle automobili dell'Alto Adige!"
+},
+
+{
+    "category_de":"WÜNSCHEN WIRKT WUNDER",
+    "category_it":"SOGNI E SPERANZE",
+    "name_de": "zweisprachige Schule",
+    "name_it": "Scuola bilingue",
+    "description_de": "Dieses Jahr Mathematik in italiano, storia auf Deutsch und nächstes Jahr proprio al contrario. Eine Schule, in der es nicht Erst- und Zweitsprache gibt, sondern in der das 'Vorzeigemodell zweisprachige Region' voll und ganz gelebt wird und es keine Sprachbarrieren mehr gibt.",
+    "description_it": "Quest'anno matematica auf Italienisch und Geschichte in tedesco e il prossimo anno andersrum. Una scuola dove non esistono una prima e una seconda lingua, ma si vive pienamente il 'modello di regione bilingue', in cui non ci sono più barriere linguistiche."
+},
+
+{
+    "category_de":"WÜNSCHEN WIRKT WUNDER",
+    "category_it":"SOGNI E SPERANZE",
+    "name_de": "Magdas Garten ",
+    "name_it": "Il giardino di Magda",
+    "description_de": "Magdalenas Herzenswunsch geht in Erfüllung: Der Hofburggarten ist eine Fläche, die allen Menschen offensteht. Jede:r darf hier sein, spazieren, picknicken, Yoga machen, die Mittagspause verbringen und sich erholen. Das grüne Herzstück der Stadt – Eintritt frei!",
+    "description_it": "Il desiderio nel cuore di Magdalena si realizza: il giardino vescovile è ora un'area aperta a tutti. Chiunque può entrarci, fare una passeggiata, un picnic, praticare yoga o semplicemente trascorrere la pausa pranzo in totale relax. Il cuore verde della città con ingresso gratuito!"
+}
+]
+
+
+
+
+
+

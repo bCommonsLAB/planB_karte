@@ -58,7 +58,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         const idString = getIdAsString(marker._id);
         
         // Logge die Struktur für Debug-Zwecke
-        console.log(`Converting MongoDB document to GeoJSON feature. ID: ${idString}`, marker);
+        //console.log(`Converting MongoDB document to GeoJSON feature. ID: ${idString}`, marker);
         
         // _id sowohl im Wurzelobjekt als auch in den Properties speichern
         const featureWithId = {
@@ -71,7 +71,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         };
         
         // Logge das konvertierte Feature
-        console.log(`Converted feature:`, featureWithId);
+        //console.log(`Converted feature:`, featureWithId);
         
         // Wir behalten die _id bei, obwohl sie nicht Teil des GeoJSON-Standards ist
         return featureWithId as Feature & { _id: string };

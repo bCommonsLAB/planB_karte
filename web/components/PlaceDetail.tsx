@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Sheet } from './ui/sheet'
 import { Feature } from 'geojson'
 import { ExternalLink, Clock, MapPin, Phone, Mail, User, Tag, Info, Edit, Save, X } from 'lucide-react'
@@ -34,6 +34,27 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
   const [error, setError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [isPickingLocation, setIsPickingLocation] = useState(false)
+  const [categories, setCategories] = useState<{kategorie: string, anzahl: number}[]>([])
+  const [isCustomCategory, setIsCustomCategory] = useState(false)
+
+  // Lade bestehende Kategorien beim ersten Öffnen
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/places/categories');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.categories) {
+            setCategories(data.categories);
+          }
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der Kategorien:', error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   // Aktiviere den Bearbeitungsmodus automatisch, wenn es sich um einen neuen Ort handelt
   React.useEffect(() => {
@@ -74,8 +95,20 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
           coordinates: coordinates
         });
       }
+      
+      // Überprüfe, ob die Kategorie in den bestehenden Kategorien existiert
+      // Falls nicht und die Kategorie ist gesetzt, aktiviere das benutzerdefinierte Feld
+      const properties = place.properties; // Sichere Referenz für TypeScript
+      const kategorie = properties.Kategorie;
+      
+      if (kategorie) {
+        const categoryExists = categories.some(cat => cat.kategorie === kategorie);
+        setIsCustomCategory(!categoryExists && !!kategorie);
+      } else {
+        setIsCustomCategory(false);
+      }
     }
-  }, [place, isEditing, isNewPlace])
+  }, [place, isEditing, isNewPlace, categories])
   
   // Überwache Änderungen an isOpen
   React.useEffect(() => {
@@ -157,10 +190,29 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
   // Handler für Formularänderungen
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
+    
+    // Wenn es sich um das Kategoriefeld handelt und der Wert "custom" ist,
+    // aktiviere das benutzerdefinierte Eingabefeld
+    if (name === 'Kategorie' && value === 'custom') {
+      setIsCustomCategory(true);
+      // Wir setzen den Wert hier nicht, da der Benutzer ihn im benutzerdefinierten Feld eingeben wird
+      return;
+    } else if (name === 'Kategorie') {
+      setIsCustomCategory(false);
+    }
+    
     setFormData({
       ...formData,
       [name]: value
     })
+  }
+
+  // Spezieller Handler für benutzerdefinierte Kategorien
+  const handleCustomCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      Kategorie: e.target.value
+    });
   }
 
   // Handler für Koordinatenänderungen mit zusätzlichem Logging
@@ -503,17 +555,33 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
               )}
               
               {isEditing ? (
-                <select
-                  name="Kategorie"
-                  value={formData.Kategorie || ''}
-                  onChange={handleChange}
-                  className="px-2 py-1 rounded-full text-xs font-medium bg-white border border-gray-300"
-                >
-                  <option value="">Keine Kategorie</option>
-                  <option value="A">Kategorie A</option>
-                  <option value="B">Kategorie B</option>
-                  <option value="C">Kategorie C</option>
-                </select>
+                <div className="flex flex-col gap-1 w-40">
+                  <select
+                    name="Kategorie"
+                    value={isCustomCategory ? 'custom' : (formData.Kategorie || '')}
+                    onChange={handleChange}
+                    className="px-2 py-1 rounded-md text-xs font-medium bg-white border border-gray-300"
+                  >
+                    <option value="">Keine Kategorie</option>
+                    {categories.map(cat => (
+                      <option key={cat.kategorie} value={cat.kategorie}>
+                        {cat.kategorie} ({cat.anzahl})
+                      </option>
+                    ))}
+                    <option value="custom">Neue Kategorie...</option>
+                  </select>
+                  
+                  {isCustomCategory && (
+                    <input
+                      type="text"
+                      value={formData.Kategorie || ''}
+                      onChange={handleCustomCategoryChange}
+                      className="px-2 py-1 rounded-md text-xs font-medium bg-white border border-gray-300"
+                      placeholder="Neue Kategorie eingeben"
+                      autoFocus
+                    />
+                  )}
+                </div>
               ) : Kategorie ? (
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${categoryColor}`}>
                   Kategorie {Kategorie}

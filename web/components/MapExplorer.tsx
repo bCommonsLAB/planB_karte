@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { FeatureCollection, Feature } from 'geojson';
-import { Map, List, Plus } from 'lucide-react';
+import { Map, List, Plus, Download, Upload, Filter, Loader2 } from 'lucide-react';
 import PlaceDetail from './PlaceDetail';
 
 // Typ-Erweiterung für globale Hilfsvariablen
@@ -16,6 +16,33 @@ declare global {
 // Interface für MongoDB-Features mit _id
 interface MongoDBFeature extends Feature {
   _id?: string;
+}
+
+// Interface für flache Datenstruktur für Excel
+interface FlatMarkerData {
+  _id?: string;
+  Name: string;
+  Nome?: string;
+  Beschreibung: string;
+  Descrizione?: string;
+  Kategorie: string;
+  Categoria: string;
+  Adresse?: string;
+  Telefonnummer?: string;
+  Email?: string;
+  "Webseite(n)"?: string;
+  Öffnungszeiten?: string;
+  Tags?: string;
+  "KAUZ Tags"?: string;
+  latitude?: number;
+  longitude?: number;
+  [key: string]: any;
+}
+
+// Interface für Kategorie-Datensatz
+interface CategoryItem {
+  kategorie: string;
+  anzahl: number;
 }
 
 // Dynamischer Import der Kartenkomponente, da sie nur clientseitig funktioniert
@@ -46,11 +73,77 @@ const MapExplorer: React.FC<MapExplorerProps> = ({
   const [isCreatingNewPlace, setIsCreatingNewPlace] = useState<boolean>(false);
   // State für die Markerliste, initial gesetzt mit den Props
   const [markers, setMarkers] = useState<FeatureCollection>(initialMarkers);
+  // Referenz für Import-Dateieingabe
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  // State für Kategorien und den aktuellen Filter
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  // State für das Laden der Marker
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   
   // useEffect zum Aktualisieren des markers-State, wenn sich initialMarkers ändert
   React.useEffect(() => {
     setMarkers(initialMarkers);
   }, [initialMarkers]);
+  
+  // Lade Kategorien beim ersten Rendern
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/places/categories');
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data.categories || []);
+        } else {
+          console.error('Fehler beim Laden der Kategorien');
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der Kategorien:', error);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+  
+  // Funktion zum Ändern des Kategoriefilters
+  const handleCategoryChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategory = event.target.value;
+    setSelectedCategory(newCategory);
+    await fetchFilteredMarkers(newCategory);
+  };
+  
+  // Funktion zum Laden der gefilterten Marker
+  const fetchFilteredMarkers = async (category: string) => {
+    setIsLoading(true);
+    
+    try {
+      // Erstelle den URL-Parameter für die Kategorie
+      const params = new URLSearchParams();
+      if (category && category !== 'all') {
+        params.append('category', category);
+      }
+      
+      const response = await fetch(`/api/places?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMarkers(data);
+        
+        // Aktualisiere die Karte
+        const refreshEvent = new CustomEvent('planBMapRefreshMarkers', {
+          detail: { 
+            fullMarkerList: data
+          }
+        });
+        document.dispatchEvent(refreshEvent);
+      } else {
+        console.error('Fehler beim Laden der gefilterten Marker');
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der gefilterten Marker:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Event-Listener für den Tab-Wechsel zur Kartenansicht
   React.useEffect(() => {
@@ -379,12 +472,399 @@ const MapExplorer: React.FC<MapExplorerProps> = ({
     }
   };
 
+  // Funktion zum Exportieren der Marker als CSV für Excel
+  const handleExportMarkers = () => {
+    try {
+      // Konvertiere GeoJSON Features in eine flache Struktur
+      const flatData: FlatMarkerData[] = markers.features.map((feature: any) => {
+        const properties = feature.properties || {};
+        const coordinates = feature.geometry?.coordinates || [0, 0];
+        
+        // Behandle spezielle Felder mit Zeilenumbrüchen
+        let beschreibung = properties.Beschreibung || '';
+        let descrizione = properties.Descrizione || '';
+        let kategorie = properties.Kategorie || '';
+        let categoria = properties.Categoria || '';
+        
+        // Ersetze Zeilenumbrüche mit einem speziellen Tag für spätere Wiederherstellung
+        beschreibung = beschreibung.replace(/\r?\n/g, '[NEWLINE]');
+        descrizione = descrizione.replace(/\r?\n/g, '[NEWLINE]');
+        
+        return {
+          _id: feature._id || '',
+          Name: properties.Name || '',
+          Nome: properties.Nome || '',
+          Beschreibung: beschreibung,
+          Descrizione: descrizione,
+          Kategorie: kategorie,
+          Categoria: categoria,
+          Adresse: properties.Adresse || '',
+          Telefonnummer: properties.Telefonnummer || '',
+          Email: properties.Email || '',
+          "Webseite(n)": properties["Webseite(n)"] || '',
+          Öffnungszeiten: properties.Öffnungszeiten || '',
+          Tags: properties.Tags || '',
+          "KAUZ Tags": properties["KAUZ Tags"] || '',
+          longitude: coordinates[0],
+          latitude: coordinates[1]
+        };
+      });
+      
+      // Erstelle CSV-Header
+      const headers = [
+        '_id', 'Name', 'Nome', 'Beschreibung', 'Descrizione', 'Kategorie', 'Categoria',
+        'Adresse', 'Telefonnummer', 'Email', 'Webseite(n)', 'Öffnungszeiten', 
+        'Tags', 'KAUZ Tags', 'longitude', 'latitude'
+      ];
+      
+      // Funktion zum Escapen von CSV-Werten
+      const escapeCSV = (value: any, delimiter: string = ';'): string => {
+        if (value === null || value === undefined) return '';
+        let stringValue = String(value);
+        
+        // Zeilenumbrüche durch Leerzeichen ersetzen
+        if (stringValue.includes('\n') || stringValue.includes('\r')) {
+          stringValue = stringValue.replace(/\r?\n/g, ' ');
+        }
+        
+        // Wenn Delimiter oder Anführungszeichen vorkommen, in Anführungszeichen setzen
+        if (stringValue.includes(delimiter) || stringValue.includes('"')) {
+          // Anführungszeichen verdoppeln für Escaping
+          return `"${stringValue.replace(/"/g, '""')}"`;
+        }
+        
+        return stringValue;
+      };
+      
+      // Erstelle CSV-Zeilen mit Semikolon als Trennzeichen
+      const delimiter = ';';
+      const csvRows = [
+        // Header-Zeile
+        headers.join(delimiter),
+        // Datenzeilen
+        ...flatData.map(item => 
+          headers.map(header => escapeCSV(item[header as keyof FlatMarkerData], delimiter)).join(delimiter)
+        )
+      ];
+      
+      // Verbinde alle Zeilen zu einem CSV-String
+      const csvString = csvRows.join('\n');
+      
+      // Erstelle einen Blob und Download-Link
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      // Erstelle einen temporären Link und klicke ihn an
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'plan_b_orte_export.csv';
+      document.body.appendChild(a);
+      a.click();
+      
+      // Bereinige
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      alert('Export erfolgreich! Die Datei kann nun in Excel geöffnet werden.');
+    } catch (error) {
+      console.error('Fehler beim Exportieren:', error);
+      alert('Fehler beim Exportieren der Daten. Bitte versuche es erneut.');
+    }
+  };
+  
+  // Funktion zum Importieren von Markerdaten aus einer CSV-Datei
+  const handleImportMarkersClick = () => {
+    // Klicke auf das versteckte Datei-Input-Feld
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  
+  // Funktion zum Verarbeiten der hochgeladenen CSV-Datei
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      // Lese den Dateiinhalt
+      const text = await file.text();
+
+      // Identifiziere das Trennzeichen (Semikolon oder Komma)
+      const delimiter = text.includes(';') ? ';' : ',';
+      console.log(`Erkanntes Trennzeichen: "${delimiter}"`);
+      
+      // Bereinige den Text: Normalisiere Zeilenumbrüche
+      const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      
+      // Teile den Text in Zeilen auf
+      let rows = normalizedText.split('\n');
+      
+      // Entferne leere Zeilen am Ende
+      rows = rows.filter(row => row.trim().length > 0);
+      
+      if (rows.length < 2) {
+        throw new Error('CSV-Datei enthält nicht genügend Zeilen');
+      }
+      
+      // Funktion zum Parsen einer CSV-Zeile unter Berücksichtigung von Anführungszeichen
+      const parseCSVLine = (line: string, delimiter: string): string[] => {
+        const result: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          
+          if (char === '"') {
+            // Prüfen, ob es ein doppeltes Anführungszeichen ist
+            if (i + 1 < line.length && line[i + 1] === '"') {
+              current += '"';
+              i++; // Überspringe das nächste Anführungszeichen
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === delimiter && !inQuotes) {
+            result.push(current);
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        
+        // Füge das letzte Element hinzu
+        result.push(current);
+        
+        return result;
+      };
+      
+      // Parse das CSV
+      const csvData: string[][] = [];
+      for (let i = 0; i < rows.length; i++) {
+        try {
+          const parsedLine = parseCSVLine(rows[i], delimiter);
+          csvData.push(parsedLine);
+        } catch (error) {
+          console.error(`Fehler beim Parsen der Zeile ${i+1}: ${error}`);
+        }
+      }
+      
+      if (csvData.length < 2) {
+        throw new Error('CSV-Datei enthält nicht genügend gültige Zeilen');
+      }
+      
+      // Extrahiere Header
+      const headers = csvData[0];
+      console.log(`CSV-Header erkannt: ${headers.join(', ')}`);
+      
+      // Bestimme die erwartete Anzahl an Spalten aus dem Header
+      const expectedColumns = headers.length;
+      console.log(`Erwartete Anzahl an Spalten: ${expectedColumns}`);
+      
+      // Parse Datenzeilen in Objekte
+      const importedData: Record<string, any>[] = [];
+      for (let i = 1; i < csvData.length; i++) {
+        const rowData = csvData[i];
+        
+        // Überspringe Zeilen ohne Daten oder mit falscher Spaltenanzahl
+        if (rowData.length === 0 || (rowData.length === 1 && !rowData[0])) {
+          continue;
+        }
+        
+        // Behandle Zeilen mit zu wenig oder zu vielen Spalten
+        if (rowData.length !== expectedColumns) {
+          console.warn(`Zeile ${i+1} hat ${rowData.length} Werte statt ${expectedColumns}. Passe die Zeile an...`);
+          
+          // Bei zu wenig Spalten: Füge leere Werte hinzu
+          while (rowData.length < expectedColumns) {
+            rowData.push('');
+          }
+          
+          // Bei zu vielen Spalten: Kürze die Zeile
+          if (rowData.length > expectedColumns) {
+            rowData.splice(expectedColumns);
+          }
+        }
+        
+        // Erstelle ein Objekt aus den Daten
+        const item: Record<string, any> = {};
+        for (let j = 0; j < headers.length; j++) {
+          const header = headers[j];
+          // Ignoriere leere Header-Namen
+          if (header.trim() === '') continue;
+          
+          // Setze den Wert für das aktuelle Feld
+          item[header] = rowData[j] || '';
+          
+          // Speziell für Beschreibung und Descrizione: [NEWLINE]-Tags wieder in echte Zeilenumbrüche umwandeln
+          if ((header === 'Beschreibung' || header === 'Descrizione') && item[header]) {
+            item[header] = item[header].replace(/\[NEWLINE\]/g, '\n');
+          }
+        }
+        
+        importedData.push(item);
+      }
+      
+      // Zeige eine Zusammenfassung der importierten Daten
+      console.log(`${importedData.length} gültige Datensätze gefunden`);
+      
+      // Dialog mit Import-Optionen anzeigen
+      const importMode = window.confirm(
+        `${importedData.length} Einträge gefunden. Wie möchten Sie importieren?\n\n` +
+        `OK: Bestehende Daten aktualisieren (Upsert)\n` +
+        `Abbrechen: Nur in der Benutzeroberfläche anzeigen, nicht in die Datenbank speichern`
+      );
+      
+      if (importMode) {
+        // CSV-Daten für die API vorbereiten
+        const csvString = rows.join('\n');
+        
+        // Daten an die API senden, um sie in die Datenbank zu importieren
+        const response = await fetch('/api/places/import', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: csvString,
+            delimiter,
+            config: {
+              mode: 'upsert',
+              identifyBy: 'name', // Name als Identifikationsmerkmal verwenden
+            }
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Fehler beim Importieren: ${errorData.error || response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        // Erfolgsmeldung anzeigen
+        alert(
+          `Import erfolgreich!\n\n` +
+          `Insgesamt: ${result.result.total}\n` +
+          `Neu hinzugefügt: ${result.result.inserted}\n` +
+          `Aktualisiert: ${result.result.updated}\n` +
+          `Fehler: ${result.result.errors.length}\n\n` +
+          `Die Seite wird neu geladen, um die aktualisierten Daten anzuzeigen.`
+        );
+        
+        // Seite neu laden, um die aktualisierten Daten anzuzeigen
+        window.location.reload();
+        
+        return;
+      }
+      
+      // Konvertiere die flachen Daten zurück in GeoJSON Features
+      const newFeatures: Feature[] = importedData.map(item => {
+        // Extrahiere die Koordinaten und korrigiere das Format
+        // Beispiel: 1.165.799 -> 11.65799 (Entferne den Tausenderpunkt und setze den richtigen Dezimalpunkt)
+        let longitudeStr = String(item.longitude || '0');
+        let latitudeStr = String(item.latitude || '0');
+        
+        // Formatiere Koordinaten korrekt (Entferne Punkte in Zahlen über 999)
+        const formatCoordinate = (coordStr: string): number => {
+          // Wenn das Format wie 1.165.799 ist, konvertiere es zu 11.65799
+          if (coordStr.split('.').length > 2) {
+            // Entferne alle Punkte und setze dann den Dezimalpunkt an der richtigen Stelle
+            const cleanStr = coordStr.replace(/\./g, '');
+            // Füge den Dezimalpunkt nach der ersten Ziffer ein
+            return parseFloat(cleanStr.slice(0, 1) + '.' + cleanStr.slice(1));
+          }
+          return parseFloat(coordStr || '0');
+        };
+        
+        const longitude = formatCoordinate(longitudeStr);
+        const latitude = formatCoordinate(latitudeStr);
+        
+        console.log(`Koordinaten konvertiert: ${longitudeStr} -> ${longitude}, ${latitudeStr} -> ${latitude}`);
+        
+        // Erstelle eine Kopie der Properties ohne die Koordinaten
+        const { longitude: lon, latitude: lat, _id, ...props } = item;
+        
+        // Erstelle ein GeoJSON-Feature
+        const feature: any = {
+          type: 'Feature' as const, 
+          properties: props,
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [longitude, latitude]
+          }
+        };
+        
+        // Füge _id hinzu, wenn vorhanden
+        if (_id && _id.trim() !== '') {
+          feature._id = _id;
+        }
+        
+        return feature;
+      });
+      
+      // Erstelle eine neue FeatureCollection
+      const newMarkers: FeatureCollection = {
+        type: 'FeatureCollection',
+        features: newFeatures
+      };
+      
+      // Aktualisiere die Marker
+      setMarkers(newMarkers);
+      
+      // Löse ein Event aus, um die Karte zu aktualisieren
+      const refreshEvent = new CustomEvent('planBMapRefreshMarkers', {
+        detail: { 
+          fullMarkerList: newMarkers
+        }
+      });
+      document.dispatchEvent(refreshEvent);
+      
+      // Bestätige den erfolgreichen Import
+      alert(`${newFeatures.length} Orte erfolgreich in die Benutzeroberfläche importiert.\n(Die Daten wurden NICHT in der Datenbank gespeichert)`);
+      
+      // Zurücksetzen des Datei-Inputs
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Fehler beim Importieren:', error);
+      alert('Fehler beim Importieren der Daten. Bitte überprüfe das Dateiformat.');
+    }
+  };
+
   return (
     <div className="w-full bg-[#e9f0df] rounded-lg shadow-sm border border-green-200 p-4">
       <Tabs defaultValue="map" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <h2 className="text-2xl font-bold text-gray-800">Plan B Karte</h2>
           <div className="flex flex-row items-center gap-2">
+            {/* Export-Button */}
+            <button
+              onClick={handleExportMarkers}
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 transition-colors duration-200"
+            >
+              <Download size={16} />
+              <span>CSV-Export</span>
+            </button>
+            
+            {/* Import-Button */}
+            <button
+              onClick={handleImportMarkersClick}
+              className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-800 rounded-md hover:bg-purple-200 transition-colors duration-200"
+            >
+              <Upload size={16} />
+              <span>CSV-Import</span>
+            </button>
+            
+            {/* Verstecktes Datei-Input-Feld für den Import */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".csv"
+              style={{ display: 'none' }}
+            />
+            
             <button
               onClick={handleCreateNewPlace}
               className="flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-800 rounded-md hover:bg-green-200 transition-colors duration-200"
@@ -392,6 +872,24 @@ const MapExplorer: React.FC<MapExplorerProps> = ({
               <Plus size={16} />
               <span>Neuen Ort erfassen</span>
             </button>
+            
+            {/* Kategoriefilter */}
+            <div className="flex items-center gap-1 px-3 py-1.5 bg-yellow-50 text-yellow-800 rounded-md border border-yellow-200">
+              <Filter size={16} />
+              <select 
+                value={selectedCategory}
+                onChange={handleCategoryChange}
+                className="bg-transparent text-yellow-800 border-none outline-none cursor-pointer"
+              >
+                <option value="all">Alle Kategorien</option>
+                {categories.map(cat => (
+                  <option key={cat.kategorie} value={cat.kategorie}>
+                    {cat.kategorie} ({cat.anzahl})
+                  </option>
+                ))}
+              </select>
+            </div>
+            
             <TabsList className="bg-gray-200 p-1 shadow-sm">
               <TabsTrigger 
                 value="map" 
@@ -413,14 +911,23 @@ const MapExplorer: React.FC<MapExplorerProps> = ({
 
         <TabsContent value="map" className="mt-1 rounded-lg overflow-hidden border border-green-200">
           <div style={{ height: mapHeight, width: mapWidth }}>
-            <PlanBMap 
-              markers={markers} 
-              height={mapHeight} 
-              width={mapWidth} 
-              onMarkerClick={handlePlaceClick}
-              onMapClick={handleMapClick}
-              isPickingLocation={isPickingLocation}
-            />
+            {isLoading ? (
+              <div className="w-full h-full flex items-center justify-center bg-secondary/30">
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 size={32} className="animate-spin text-green-600" />
+                  <span className="text-green-700 font-medium">Lade Orte...</span>
+                </div>
+              </div>
+            ) : (
+              <PlanBMap 
+                markers={markers} 
+                height={mapHeight} 
+                width={mapWidth} 
+                onMarkerClick={handlePlaceClick}
+                onMapClick={handleMapClick}
+                isPickingLocation={isPickingLocation}
+              />
+            )}
             
             {/* Hinweis für den Ortsauswahl-Modus */}
             {isPickingLocation && (
@@ -447,67 +954,76 @@ const MapExplorer: React.FC<MapExplorerProps> = ({
         </TabsContent>
 
         <TabsContent value="gallery" className="mt-1">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {markers.features.map((feature, index) => {
-              if (!feature.properties) return null;
-              
-              // Hole die relevanten Eigenschaften aus den Properties
-              const { 
-                Name, 
-                Beschreibung, 
-                Adresse, 
-                Kategorie, 
-                Öffnungszeiten, 
-                "Webseite(n)": Webseite 
-              } = feature.properties;
-              
-              // Bestimme die Kartenfarbe basierend auf der Kategorie
-              const categoryColors: Record<string, string> = {
-                'A': 'bg-red-50 border-red-200',
-                'B': 'bg-green-50 border-green-200',
-                'C': 'bg-blue-50 border-blue-200'
-              };
-              const cardColor = (Kategorie && categoryColors[Kategorie]) || 'bg-gray-50 border-gray-200';
-              
-              return (
-                <div 
-                  key={`marker-${index}`} 
-                  className={`border rounded-lg p-4 shadow-sm ${cardColor} hover:shadow-md transition-all duration-200 cursor-pointer`}
-                  onClick={() => handlePlaceClick(feature as MongoDBFeature)}
-                >
-                  <div className="flex items-start justify-between">
-                    <h3 className="text-lg font-semibold text-gray-800">{Name}</h3>
-                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-white shadow-sm">
-                      Kategorie {Kategorie}
-                    </span>
-                  </div>
-                  
-                  {Beschreibung && (
-                    <p className="mt-2 text-sm text-gray-600 line-clamp-3">{Beschreibung}</p>
-                  )}
-                  
-                  <div className="mt-4 space-y-1 text-xs text-gray-600">
-                    {Adresse && <p><span className="font-medium">Adresse:</span> {Adresse}</p>}
-                    {Öffnungszeiten && <p><span className="font-medium">Öffnungszeiten:</span> {Öffnungszeiten}</p>}
-                    {Webseite && (
-                      <p>
-                        <span className="font-medium">Website:</span> 
-                        <a 
-                          href={Webseite as string} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="text-green-600 hover:text-green-800 hover:underline ml-1 transition-colors"
-                          onClick={(e) => e.stopPropagation()} // Verhindert, dass die Detailansicht auch geöffnet wird
-                        >
-                          {Webseite}
-                        </a>
-                      </p>
+          {isLoading ? (
+            <div className="h-96 w-full flex items-center justify-center bg-secondary/10 rounded-lg">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 size={32} className="animate-spin text-green-600" />
+                <span className="text-green-700 font-medium">Lade Orte...</span>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {markers.features.map((feature, index) => {
+                if (!feature.properties) return null;
+                
+                // Hole die relevanten Eigenschaften aus den Properties
+                const { 
+                  Name, 
+                  Beschreibung, 
+                  Adresse, 
+                  Kategorie, 
+                  Öffnungszeiten, 
+                  "Webseite(n)": Webseite 
+                } = feature.properties;
+                
+                // Bestimme die Kartenfarbe basierend auf der Kategorie
+                const categoryColors: Record<string, string> = {
+                  'A': 'bg-red-50 border-red-200',
+                  'B': 'bg-green-50 border-green-200',
+                  'C': 'bg-blue-50 border-blue-200'
+                };
+                const cardColor = (Kategorie && categoryColors[Kategorie]) || 'bg-gray-50 border-gray-200';
+                
+                return (
+                  <div 
+                    key={`marker-${index}`} 
+                    className={`border rounded-lg p-4 shadow-sm ${cardColor} hover:shadow-md transition-all duration-200 cursor-pointer`}
+                    onClick={() => handlePlaceClick(feature as MongoDBFeature)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <h3 className="text-lg font-semibold text-gray-800">{Name}</h3>
+                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-white shadow-sm">
+                        Kategorie {Kategorie}
+                      </span>
+                    </div>
+                    
+                    {Beschreibung && (
+                      <p className="mt-2 text-sm text-gray-600 line-clamp-3">{Beschreibung}</p>
                     )}
+                    
+                    <div className="mt-4 space-y-1 text-xs text-gray-600">
+                      {Adresse && <p><span className="font-medium">Adresse:</span> {Adresse}</p>}
+                      {Öffnungszeiten && <p><span className="font-medium">Öffnungszeiten:</span> {Öffnungszeiten}</p>}
+                      {Webseite && (
+                        <p>
+                          <span className="font-medium">Website:</span> 
+                          <a 
+                            href={Webseite as string} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-green-600 hover:text-green-800 hover:underline ml-1 transition-colors"
+                            onClick={(e) => e.stopPropagation()} // Verhindert, dass die Detailansicht auch geöffnet wird
+                          >
+                            {Webseite}
+                          </a>
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
