@@ -33,7 +33,7 @@ jobs:
       - name: read version file
         id: read_version
         run: |
-          VERSION=$(cat VERSION)
+          VERSION=$(cat VERSION | xargs)  # Trim whitespace
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: bump version
