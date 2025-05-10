@@ -24,23 +24,42 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create VERSION file if not exists
+      # Debug-Schritt zum Anzeigen des Inhalts der VERSION-Datei
+      - name: Debug VERSION file before
         run: |
-          if [ ! -f VERSION ]; then
+          echo "VERSION content before:"
+          if [ -f VERSION ]; then hexdump -C VERSION; fi
+          echo "End of VERSION content"
+
+      - name: Create or validate VERSION file
+        run: |
+          if [ ! -f VERSION ] || ! grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' VERSION; then
+            echo "VERSION file missing or invalid, creating new file with version 1.0.0"
             echo "1.0.0" > VERSION
           fi
+
+      - name: Debug VERSION file after
+        run: |
+          echo "VERSION content after:"
+          hexdump -C VERSION
+          echo "End of VERSION content"
 
       - name: read version file
         id: read_version
         run: |
-          VERSION=$(cat VERSION | xargs)  # Trim whitespace
+          VERSION=$(cat VERSION | tr -d '\r\n ' | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
+          if [ -z "$VERSION" ]; then
+            VERSION="1.0.0"
+            echo "Invalid version, defaulting to $VERSION"
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using version: $VERSION"
 
       - name: bump version
         id: bump
         uses: cbrgm/semver-bump-action@main
         with:
-          current-version: ${{steps.read_version.outputs.VERSION}}
+          current-version: ${{ steps.read_version.outputs.VERSION || '1.0.0' }}
           bump-level: patch
 
       - name: write version file
