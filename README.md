@@ -25,6 +25,7 @@ Diese Anwendung zeigt Orte und Points of Interest auf einer interaktiven Karte. 
 ## Anwendung starten
 
 ```
+cd web
 npm run dev
 ```
 
@@ -40,106 +41,103 @@ Die Daten werden als GeoJSON-Features in der MongoDB-Collection `places` gespeic
 
 - `GET /api/places` - Gibt alle Orte zurück
 - `GET /api/places?category=A` - Filtert Orte nach Kategorie
-
-## Verwaltung über die Admin-Oberfläche
-
-Die Admin-Oberfläche ermöglicht:
-- Anzeigen aller Orte
-- Filtern nach Kategorien
-- Suchen nach Namen
-
-## Entwicklung
-
-- Die Hauptseite mit der Karte befindet sich in `web/pages/index.tsx`
-- Die Kartenkomponente ist in `web/components/MapExplorer.tsx` und `web/components/PlanBMap/index.tsx`
-- Die MongoDB-Anbindung erfolgt in den API-Endpunkten und Server-Side-Rendering-Funktionen
+- `POST /api/places` - Erstellt einen neuen Ort
+- `PUT /api/places/:id` - Aktualisiert einen bestehenden Ort
+- `DELETE /api/places/:id` - Löscht einen Ort
 
 ## Projektstruktur
 
-Das Repository ist in zwei Hauptteile gegliedert:
+Das Repository ist in zwei Hauptkomponenten gegliedert:
 
-- `lib/`: Die ursprüngliche Kartenimplementierung mit Parcel-Bundler
-- `web/`: Eine Next.js-Anwendung, die die Karte als Komponente verwendet
+### Kartenkomponente (`/lib`)
 
-## Ursprüngliche Kartenanwendung (lib/)
+Die Kartenkomponente ist eine eigenständige React-Komponente, die in anderen Anwendungen wiederverwendet werden kann.
 
-Die ursprüngliche Anwendung ist eine einfache Webseite, die MapLibre GL JS verwendet, um Orte auf einer Karte anzuzeigen.
+- **Technologie:** React, TypeScript, Parcel-Bundler, MapLibre GL JS
+- **Hauptdateien:**
+  - `src/ts/PlanBMap.tsx` - Die Hauptkomponente für die Kartenanzeige
+  - `src/ts/main.ts` - Einstiegspunkt für die Kartenkomponente
+  - `src/ts/query_overpass.ts` - Hilfsfunktionen für Overpass-API-Abfragen
+  - `src/index.html` - Demo-HTML für die eigenständige Kartenkomponente
 
-### Installation
+Die Komponente kann eigenständig als NPM-Paket genutzt oder direkt in andere Projekte integriert werden.
+
+### Web-Anwendung (`/web`)
+
+Die vollständige Web-Anwendung mit Next.js, die die Kartenkomponente verwendet und erweiterte Funktionen bereitstellt.
+
+- **Technologie:** Next.js, React, TypeScript, MongoDB, Tailwind CSS
+- **Hauptkomponenten:**
+  - `/components/PlanBMap/index.tsx` - Erweiterte Version der Kartenkomponente
+  - `/components/MapExplorer.tsx` - UI-Komponente für die Kartenexploration
+  - `/components/PlaceDetail.tsx` - Detailansicht für Orte
+  - `/components/DebugOverlay.tsx` - Debugging-Werkzeug
+
+- **Hauptseiten:**
+  - `/pages/index.tsx` - Hauptseite mit Karte
+  - `/app/api/places/` - API-Endpunkte für Ortsdaten
+  - `/app/admin/` - Admin-Bereich für die Datenverwaltung
+
+## Funktionalitäten
+
+### Kartenkomponente (lib)
+
+- Anzeige von Markern aus GeoJSON-Daten
+- Kategorisierung von Markern mit verschiedenen Farben
+- Filter nach Kategorien
+- Marker-Popup mit Detailinformationen
+- Integration mit Overpass API für Trinkwasserquellen
+
+### Web-Anwendung (web)
+
+- Erweiterte Kartenkomponente mit zusätzlichen Funktionen
+- Detailansicht für Orte mit allen Informationen
+- Bearbeitung und Erstellung neuer Orte
+- Admin-Bereich zur Datenverwaltung
+- API-Endpunkte für den Datenzugriff
+- Filtern nach Kategorien
+- Export/Import von Daten als CSV
+- Koordinatenkorrektur für fehlerhafte Daten
+- Responsive Design für verschiedene Geräte
+
+## Koordinatensystem
+
+Die Anwendung verwendet:
+- Intern: GeoJSON-Format mit [longitude, latitude] (WGS84)
+- In Formularen: [latitude, longitude] für die Benutzereingabe
+- Automatische Koordinatenkorrektur für fehlerhafte Daten
+- Validierung von Koordinaten im erlaubten Bereich (10km um Brixen)
+
+## Entwicklertools
+
+### Kartenkomponente (lib)
 
 ```bash
 cd lib
 yarn install
+yarn start  # Entwicklungsserver auf Port 1234
+yarn build  # Produktions-Build
 ```
 
-### Entwicklungsserver starten
-
-```bash
-cd lib
-yarn start
-```
-
-Die Anwendung ist dann unter http://localhost:1234 verfügbar.
-
-### Produktions-Build erstellen
-
-```bash
-cd lib
-yarn build
-```
-
-## Next.js-Anwendung (web/)
-
-Die Next.js-Anwendung demonstriert, wie die Karte als Komponente in einer modernen Webanwendung verwendet werden kann.
-
-### Installation
+### Web-Anwendung (web)
 
 ```bash
 cd web
 yarn install
+yarn dev    # Entwicklungsserver auf Port 3000
+yarn build  # Produktions-Build
+yarn start  # Produktionsserver starten
 ```
 
-### Entwicklungsserver starten
+## Docker
+
+Die Web-Anwendung kann mit Docker ausgeführt werden:
 
 ```bash
 cd web
-yarn dev
+docker build -t planb-karte .
+docker run -p 3000:3000 planb-karte
 ```
-
-Die Anwendung ist dann unter http://localhost:3000 verfügbar.
-
-### Produktions-Build erstellen
-
-```bash
-cd web
-yarn build
-yarn start
-```
-
-## Gemeinsames Git-Repository und Deployment
-
-Beide Anwendungen teilen sich dasselbe Git-Repository. Für das Deployment können sie jedoch separat konfiguriert werden:
-
-1. **GitHub Pages für die ursprüngliche Anwendung:**
-   Die ursprüngliche Anwendung kann über den vorhandenen GitHub Action Workflow auf GitHub Pages bereitgestellt werden.
-
-2. **Vercel/Netlify für die Next.js-Anwendung:**
-   Die Next.js-Anwendung kann über Dienste wie Vercel oder Netlify bereitgestellt werden, wobei das Stammverzeichnis auf `web/` gesetzt wird.
-
-## Marker anpassen
-
-Die Markerdaten befinden sich in JSON-Dateien:
-
-- Ursprüngliche Anwendung: `lib/src/markers.json`
-- Next.js-Anwendung: `web/data/markers.json`
-
-Das Format ist GeoJSON mit zusätzlichen Eigenschaften für jeden Punkt, darunter:
-- Name
-- Beschreibung
-- Kategorie (A, B oder C)
-- Koordinaten
-- Öffnungszeiten
-- Kontaktinformationen
 
 ## Lizenz
 

@@ -42,8 +42,6 @@ function App({ Component, pageProps }: AppProps) {
     <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Plan B Karte</title>
-        {/* Caching-Metatags */}
         <meta httpEquiv="Cache-Control" content="max-age=3600, must-revalidate" />
         <meta httpEquiv="Pragma" content="no-cache" />
       </Head>

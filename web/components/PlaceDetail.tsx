@@ -4,12 +4,16 @@ import React, { useState, useEffect } from 'react'
 import { Sheet } from './ui/sheet'
 import { Feature } from 'geojson'
 import { ExternalLink, Clock, MapPin, Phone, Mail, User, Tag, Info, Edit, Save, X } from 'lucide-react'
+import { appState, AppStateEvent } from '../utils/appState'
 
 // Typ-Erweiterung für globale Hilfsvariablen
 declare global {
   interface Window {
     _planBPickerModeActive?: boolean;
     _planBLastSelectedCoordinates?: [number, number];
+    _planBIsEditMode?: boolean;
+    _planBDetailDialogOpen?: boolean;
+    _planBSelectedPlaceName?: string;
   }
 }
 
@@ -22,12 +26,13 @@ interface PlaceDetailProps {
   place: MongoDBFeature | null
   isOpen: boolean
   onClose: () => void
-  onUpdate?: (updatedPlace: MongoDBFeature) => void
-  onPickLocation?: (callback: (coordinates: [number, number]) => void) => void
+  onUpdate: (updatedPlace: MongoDBFeature) => void
+  onPickLocation: (callback: (coordinates: [number, number]) => void, initialPosition?: [number, number]) => void
   isNewPlace?: boolean
+  onEditingStateChange?: (isEditing: boolean) => void
 }
 
-const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpdate, onPickLocation, isNewPlace = false }) => {
+const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpdate, onPickLocation, isNewPlace = false, onEditingStateChange }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<any>({})
   const [isSaving, setIsSaving] = useState(false)
@@ -56,6 +61,24 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
     fetchCategories();
   }, []);
 
+  // Synchronisiere lokalen isPickingLocation mit globalem Zustand
+  useEffect(() => {
+    const updateFromGlobalState = () => {
+      const state = appState.getState();
+      setIsPickingLocation(state.pickerModeActive);
+    };
+    
+    // Initial synchronisieren
+    updateFromGlobalState();
+    
+    // Auf globale Zustandsänderungen hören
+    appState.on(AppStateEvent.STATE_CHANGED, updateFromGlobalState);
+    
+    return () => {
+      appState.off(AppStateEvent.STATE_CHANGED, updateFromGlobalState);
+    };
+  }, []);
+
   // Aktiviere den Bearbeitungsmodus automatisch, wenn es sich um einen neuen Ort handelt
   React.useEffect(() => {
     if (isNewPlace && place) {
@@ -69,16 +92,20 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
       // Hole die Koordinaten aus dem Place-Objekt oder verwende die global gespeicherten
       let coordinates: [number, number] = [0, 0];
       
-      // Prüfe, ob global gespeicherte Koordinaten vorhanden sind (für Race-Condition-Fälle)
-      const savedCoordinates = window._planBLastSelectedCoordinates;
+      // Verwende zuerst den zentralen Zustandsmanager, dann Fallback auf das Window-Objekt
+      const selectedCoordinates = appState.getState().lastSelectedCoordinates;
       
       if (place.geometry && place.geometry.type === 'Point') {
         // Standard-Fall: Verwende die Koordinaten aus dem Geometrie-Objekt
         coordinates = [place.geometry.coordinates[1], place.geometry.coordinates[0]];
       } 
-      else if (savedCoordinates && Array.isArray(savedCoordinates) && savedCoordinates.length === 2) {
-        // Fall-Back: Verwende die global gespeicherten Koordinaten
-        coordinates = [savedCoordinates[1], savedCoordinates[0]]; // Umwandlung von [lon, lat] zu [lat, lon]
+      else if (selectedCoordinates && selectedCoordinates.length === 2) {
+        // Fall-Back: Verwende die zentral gespeicherten Koordinaten
+        coordinates = [selectedCoordinates[1], selectedCoordinates[0]]; // Umwandlung von [lon, lat] zu [lat, lon]
+      }
+      else if (window._planBLastSelectedCoordinates) {
+        // Legacy-Fallback: Verwende die global gespeicherten Koordinaten
+        coordinates = [window._planBLastSelectedCoordinates[1], window._planBLastSelectedCoordinates[0]];
       }
       
       // Wenn wir im Bearbeitungsmodus sind und einen neuen Ort erstellen,
@@ -110,16 +137,49 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
     }
   }, [place, isEditing, isNewPlace, categories])
   
-  // Überwache Änderungen an isOpen
+  // Überwache Änderungen an isOpen und synchronisiere mit globalem Zustand
   React.useEffect(() => {
-    // Hier keine Aktion notwendig, nur für Logging
-  }, [isOpen])
+    console.log('Dialog-Status aktualisiert:', {
+      isOpen,
+      isPickingLocation,
+      place: place ? place.properties?.Name : 'kein Ort',
+      globalPickerActive: appState.getState().pickerModeActive
+    });
+    
+    // Setze den Dialog-Status im globalen Zustand
+    appState.setDetailDialogOpen(isOpen);
+    
+    // Wenn der Dialog geöffnet wird und wir im Ortsauswahl-Modus sind, beenden wir diesen
+    if (isOpen && isPickingLocation) {
+      console.log('Dialog geöffnet im Ortsauswahl-Modus - beende Modus');
+      appState.setPickerMode(false);
+    }
+    
+    // Legacy: Synchronisiere mit window-Variablen
+    window._planBDetailDialogOpen = isOpen;
+    
+    // Wenn der Dialog einen Ort anzeigt, speichere den Namen
+    if (isOpen && place && place.properties?.Name) {
+      appState.setSelectedPlaceName(place.properties.Name);
+      // Legacy
+      window._planBSelectedPlaceName = place.properties.Name;
+    }
+  }, [isOpen, isPickingLocation, place]);
 
-  // Überwachen wir auch Änderungen am formData, um zu sehen, wann sich die Koordinaten ändern
-  React.useEffect(() => {
-    // Hier keine Aktion notwendig, nur für Logging
-  }, [formData.coordinates]);
-  
+  // Effect, um Änderungen am isEditing-Status zu melden
+  useEffect(() => {
+    // Informiere die übergeordnete Komponente über den Bearbeitungszustand
+    if (onEditingStateChange) {
+      onEditingStateChange(isEditing);
+    }
+    
+    // Setze den Bearbeitungsmodus im globalen Zustand
+    appState.setEditMode(isEditing);
+    
+    // Legacy: Setze auch die globale Variable
+    window._planBIsEditMode = isEditing;
+  }, [isEditing, onEditingStateChange]);
+
   // Notfall-Listener für das forceReopenDialog-Event
   React.useEffect(() => {
     const handleForceReopen = (event: CustomEvent) => {
@@ -129,22 +189,18 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
       }
       
       // WICHTIG: Globale Variable zurücksetzen, um Race-Conditions zu vermeiden
+      appState.setPickerMode(false);
       window._planBPickerModeActive = false;
-      
-      // WICHTIG: Sicherstellen, dass der Dialog wieder geöffnet wird
-      if (!isOpen) {
-        // Wenn möglich, informiere die übergeordnete Komponente
-        if (onUpdate && place) {
-          onUpdate(place);
-        }
-      }
       
       // Verwende die Koordinaten aus dem Event, falls vorhanden
       if (event.detail?.coordinates && Array.isArray(event.detail.coordinates) && event.detail.coordinates.length === 2) {
         // Die Koordinaten sind im [lon, lat] Format, also wandeln wir sie in [lat, lon] um
         const coordinates: [number, number] = [event.detail.coordinates[1], event.detail.coordinates[0]];
         
-        // WICHTIG: Speichere auch global
+        // Speichere die Koordinaten im zentralen Zustand
+        appState.setSelectedCoordinates(event.detail.coordinates);
+        
+        // WICHTIG: Speichere auch im Legacy-Format
         window._planBLastSelectedCoordinates = event.detail.coordinates;
         
         // Formular aktualisieren
@@ -161,7 +217,7 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
     return () => {
       document.removeEventListener('forceReopenDialog', handleForceReopen as EventListener);
     };
-  }, [isPickingLocation, setFormData, isOpen, place, onUpdate]);
+  }, [isPickingLocation, setFormData]);
 
   if (!place) return null
 
@@ -236,25 +292,52 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
     // Speichere die aktuellen Formular-Daten für spätere Verwendung
     const currentFormData = {...formData};
     
-    // Ortsauswahl-Modus aktivieren
-    setIsPickingLocation(true);
+    // Extrahiere aktuelle Koordinaten, falls vorhanden
+    let initialPosition: [number, number] | undefined;
     
-    // WICHTIG: Globale Variable für die Ortsauswahl aktivieren
+    // Wenn ein Ort mit Geometrie vorhanden ist, verwende dessen Koordinaten
+    if (place?.geometry?.type === 'Point' && Array.isArray(place.geometry.coordinates)) {
+      // Hier brauchen wir [lon, lat] Format
+      initialPosition = [place.geometry.coordinates[0], place.geometry.coordinates[1]]; 
+    }
+    // Alternativ aus dem Formular (im [lat, lon] Format)
+    else if (formData.coordinates && formData.coordinates.length === 2) {
+      // Umwandlung von [lat, lon] zu [lon, lat]
+      initialPosition = [formData.coordinates[1], formData.coordinates[0]];
+    }
+    
+    // Ortsauswahl-Modus im zentralen Zustand aktivieren
+    appState.setPickerMode(true);
+    
+    // Legacy: Globale Variable aktualisieren
     window._planBPickerModeActive = true;
     
-    // WICHTIG: Stelle sicher, dass die Kartenansicht aktiv ist
+    // Wenn initiale Position vorhanden, auch im globalen Zustand speichern
+    if (initialPosition) {
+      appState.setSelectedCoordinates(initialPosition);
+      // Legacy: Global speichern
+      window._planBLastSelectedCoordinates = initialPosition;
+    }
+    
+    // Event auslösen, um zur Map-Ansicht zu wechseln
     const switchToMapEvent = new CustomEvent('planBSwitchToMapView');
     document.dispatchEvent(switchToMapEvent);
     
     // Callback-Funktion für die Kartenkomponente, um die ausgewählten Koordinaten zu erhalten
     onPickLocation((coordinates: [number, number]) => {
-      // Koordinaten aktualisieren: [lon, lat] zu [lat, lon] für das Formular umwandeln
+      // WICHTIG: Zu diesem Zeitpunkt sind die Koordinaten im Format [lon, lat] von der Karte
+      console.log('Ausgewählte Koordinaten von Karte (lon, lat):', coordinates);
+      
+      // Koordinaten umwandeln: [lon, lat] zu [lat, lon] für das Formular
       const updatedCoordinates = [coordinates[1], coordinates[0]];
+      console.log('Umgewandelte Koordinaten für Formular (lat, lon):', updatedCoordinates);
       
-      // WICHTIG: Globale Variable zurücksetzen
+      // Speichere die Koordinaten im zentralen Zustand
+      appState.setSelectedCoordinates(coordinates);
+      appState.setPickerMode(false);
+      
+      // Legacy: Für kompatibilität mit vorhandenen Komponenten
       window._planBPickerModeActive = false;
-      
-      // Globale Koordinaten speichern
       window._planBLastSelectedCoordinates = coordinates;
       
       // WICHTIG: Merge der gesicherten Formulardaten mit den neuen Koordinaten
@@ -262,18 +345,14 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
         ...currentFormData,
         coordinates: updatedCoordinates
       });
-      
-      // Auswahl-Modus beenden
-      setIsPickingLocation(false);
-      
-      // Der Dialog wird automatisch wieder geöffnet, da MapExplorer setIsDetailOpen(true) aufruft
-    });
+    }, initialPosition); // Übergebe die initiale Position an den Callback
   }
 
   // Handler zum Speichern der Änderungen
   const handleSave = async () => {
     if (formData.coordinates) {
       // Debug-Information
+      console.log('Speichere Koordinaten:', formData.coordinates);
     }
     
     setIsSaving(true)
@@ -281,20 +360,33 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
     setSaveSuccess(false)
     
     try {
-      // Erstelle ein aktualisiertes Feature
+      // Koordinatenkorrektur vor dem Speichern anwenden, ähnlich wie in PlanBMap
+      let correctedLat = formData.coordinates ? formData.coordinates[0] : 0;
+      let correctedLon = formData.coordinates ? formData.coordinates[1] : 0;
+      
+      // Korrigiere Breitengrad (sollte etwa zwischen 45 und 48 für Südtirol sein)
+      if (correctedLat > 0 && correctedLat < 10) {
+        correctedLat = correctedLat * 10;
+        console.log(`Korrigiere Breitengrad: ${formData.coordinates[0]} -> ${correctedLat}`);
+      }
+      
+      // Korrigiere Längengrad (sollte etwa zwischen 10 und 13 für Südtirol sein)
+      if (correctedLon > 20 && correctedLon < 200) {
+        correctedLon = correctedLon / 10;
+        console.log(`Korrigiere Längengrad: ${formData.coordinates[1]} -> ${correctedLon}`);
+      }
+      
+      // Erstelle ein aktualisiertes Feature mit korrigierten Koordinaten
       const updatedFeature = {
         ...place,
         properties: {
           ...formData,
-          // Aktualisiere auch die alten Koordinaten im properties-Objekt, falls sie existieren
-          "Koordinate N": formData.coordinates ? formData.coordinates[0] : undefined,
-          "Koordinate O": formData.coordinates ? formData.coordinates[1] : undefined,
           // Entferne die Koordinaten aus den Properties
           coordinates: undefined
         },
         geometry: {
           type: 'Point',
-          coordinates: [formData.coordinates[1], formData.coordinates[0]] // [lon, lat]
+          coordinates: [correctedLon, correctedLat] // [lon, lat] für Geometrie-Format
         }
       }
       
@@ -355,6 +447,15 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
           if (onUpdate) {
             onUpdate(newPlace);
           }
+          
+          // KORRIGIERT: Füge einen kurzen Timeout hinzu, bevor wir den Dialog schließen
+          setTimeout(() => {
+            // Stelle sicher, dass wir nicht im Picker-Modus sind
+            appState.setPickerMode(false);
+            if (onClose) {
+              onClose();
+            }
+          }, 500);
           
           return;
         } catch (error: any) {
@@ -439,15 +540,12 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
           _id: placeId,
           properties: {
             ...formData,
-            // Aktualisiere auch die alten Koordinaten im properties-Objekt, falls sie existieren
-            "Koordinate N": formData.coordinates ? formData.coordinates[0] : undefined,
-            "Koordinate O": formData.coordinates ? formData.coordinates[1] : undefined,
             // Entferne die Koordinaten aus den Properties
             coordinates: undefined
           },
           geometry: {
             type: 'Point' as const,
-            coordinates: [formData.coordinates[1], formData.coordinates[0]] // [lon, lat]
+            coordinates: [correctedLon, correctedLat]
           }
         };
         
@@ -459,6 +557,15 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
             detail: { updatedFeature: updatedPlaceWithId }
           });
           document.dispatchEvent(refreshEvent);
+          
+          // KORRIGIERT: Füge einen kurzen Timeout hinzu, bevor wir den Dialog schließen
+          setTimeout(() => {
+            // Stelle sicher, dass wir nicht im Picker-Modus sind
+            appState.setPickerMode(false);
+            if (onClose) {
+              onClose();
+            }
+          }, 500);
         }
       }
     } catch (err) {
@@ -522,11 +629,11 @@ const PlaceDetail: React.FC<PlaceDetailProps> = ({ place, isOpen, onClose, onUpd
   };
 
   return (
-    <Sheet isOpen={isOpen && !isPickingLocation} onClose={onClose}>
+    <Sheet isOpen={isOpen} onClose={onClose}>
       <div className="flex flex-col h-full max-h-[90vh]">
         {/* Hinweis, wenn im Ortsauswahlmodus */}
         {isPickingLocation && (
-          <div className="fixed top-4 right-4 z-50 bg-blue-600 text-white px-4 py-2 rounded-md shadow-lg">
+          <div className="fixed top-4 right-4 z-50 bg-blue-600 text-white px-4 py-2 rounded-md shadow-lg" data-testid="location-picker-message">
             Klicke auf die Karte, um den Ort auszuwählen
           </div>
         )}

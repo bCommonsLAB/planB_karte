@@ -1,9 +1,15 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import maplibregl, { LngLatLike, Map, Popup } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-// import { overpassToGeojson } from '../../utils/query_overpass';
-import { Feature, FeatureCollection, GeoJSON } from 'geojson';
+import { Feature, FeatureCollection } from 'geojson';
 import styles from './PlanBMap.module.css';
+import { appState } from '../../utils/appState';
+
+// Set für bereits registrierte Event-Handler-Layer
+const registeredEventLayers = new Set<string>();
+
+// Debug-Einstellungen
+const DEBUG_MODE = true; // Auf true setzen, um erweiterte Debug-Informationen zu sehen
 
 // Typ-Erweiterung für globale Hilfsvariablen
 declare global {
@@ -39,86 +45,206 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
   mapApiKey = 'Q5QrPJVST2pfBYoNSxOo',
   center = { lon: 11.6603, lat: 46.7176 },
   zoom = 13.5,
-  categoryColors = {
-    A: "#FF0000",
-    B: "#00FF00",
-    C: "#0000FF",
-  },
-  showDrinkingWater = false, // Deaktiviert, da es Probleme mit osm2geojson-lite gibt
+  categoryColors = {},
+  showDrinkingWater = false,
   height = '100%',
   width = '100%',
   onMarkerClick,
   onMapClick,
   isPickingLocation = false
 }) => {
-  // Hilfsfunktion, um die stabile Speicherung von Werten zu ermöglichen
-  const useStableValue = <T,>(initialValue: T) => {
-    const [stableValue, setStableValue] = useState<T>(initialValue);
-    return {
-      value: stableValue,
-      set: setStableValue,
-    };
-  };
-
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const filterGroupRef = useRef<HTMLDivElement>(null);
   const filterInputRef = useRef<HTMLInputElement>(null);
-  const [layerIDs, setLayerIDs] = useState<string[]>([]);
   const componentId = useRef(`planb-${Math.random().toString(36).substring(2, 9)}`);
-  const renderCount = useRef(0);
-  const hasInitialized = useRef(false); // Flag zur Vermeidung mehrfacher Initialisierung
   
-  // Ref für den aktuellen Kartenzustand (keine State-Updates auslösen)
+  // Referenz für den aktuellen Kartenzustand
   const mapStateRef = useRef({
-    center: center,
-    zoom: zoom,
-    isUserInteraction: false // Flag, um zu erkennen, ob die Änderung vom Benutzer kommt
-  });
-
-  // Stabile Speicherung des Filter-Elements
-  const filterElement = useStableValue<HTMLInputElement | null>(null);
-
-  // Tracker für bedeutende Änderungen, die ein Re-Rendern auslösen sollten
-  const prevDepsRef = useRef({
-    markerCount: markers.features.length,
-    mapStyle,
-    centerLat: typeof center === 'object' && 'lat' in center ? center.lat : null,
-    centerLng: typeof center === 'object' && 'lon' in center ? center.lon : null,
+    center,
     zoom,
+    isUserInteraction: false
   });
 
-  // Memoize markers, um unnötige Re-Renders zu vermeiden
-  const memoizedMarkers = useMemo(() => {
-    return markers;
-  }, [
-    // Nur neu memoizieren, wenn sich die Features wirklich geändert haben
+  // Referenz für temporären Marker bei Ortsauswahl
+  const tempMarkerRef = useRef<maplibregl.Marker | null>(null);
+
+  // Memoize Marker, um unnötige Re-Renders zu vermeiden
+  const memoizedMarkers = useMemo(() => markers, [
     markers.features.length,
-    // Man könnte hier auch einen tieferen Vergleich implementieren, wenn nötig
     JSON.stringify(markers.features.map(f => f.properties?.id || f.id))
   ]);
 
-  // Ref für den temporären Marker bei der Ortsauswahl
-  const tempMarkerRef = useRef<maplibregl.Marker | null>(null);
-
-  // Generiere dynamisch kategorie-Farben für alle in den Daten vorhandenen Kategorien
-  const dynamicCategoryColors = useMemo(() => {
-    // Starte mit den vordefinierten Kategorien
-    const colors = { ...categoryColors };
+  // Funktion zum Korrigieren falscher Koordinaten
+  const fixCoordinates = (feature: Feature): Feature => {
+    // Überprüfe, ob Feature und Geometrie existieren
+    if (!feature || !feature.geometry) return feature;
     
-    // Extrahiere alle einzigartigen Kategorien aus den Markern
-    const uniqueCategories = new Set<string>();
-    memoizedMarkers.features.forEach(feature => {
-      if (feature.properties && feature.properties.Kategorie) {
-        uniqueCategories.add(feature.properties.Kategorie);
+    // Überprüfe, ob Geometrie vom Typ Point ist
+    if (feature.geometry.type !== 'Point') return feature;
+    
+    // Überprüfe, ob Koordinaten existieren
+    const coords = feature.geometry.coordinates;
+    if (!coords || coords.length !== 2) return feature;
+    
+    let [lon, lat] = coords;
+    let hasBeenCorrected = false;
+    const featureName = feature.properties?.Name || "Unbenannt";
+    
+    // Fall 1: Koordinaten sind [0,0] - Ungültige Koordinaten
+    if (lon === 0 && lat === 0) {
+      console.log(`[PlanBMap] Ungültige Koordinaten [0,0] für "${featureName}" gefunden`);
+      
+      // Setze Nullkoordinaten auf Standard-Brixen-Position mit zufälligem Versatz
+      const brixenLat = 46.7165;
+      const brixenLon = 11.566;
+      const randomOffset = (Math.random() - 0.5) * 0.01; // ca. 0.5-1km Versatz
+      
+      feature.geometry.coordinates = [brixenLon + randomOffset, brixenLat + randomOffset];
+      console.log(`[PlanBMap] Nullkoordinaten für "${featureName}" auf Brixen-Position gesetzt: [${feature.geometry.coordinates[0]}, ${feature.geometry.coordinates[1]}]`);
+      
+      return feature;
+    }
+    
+    // Referenzpunkt für Brixen/Südtirol
+    const brixenLat = 46.7165;
+    const brixenLon = 11.566;
+    
+    // ERWEITERTE KORREKTUR: Wir gehen davon aus, dass alle echten Punkte in einem 10km-Radius um Brixen liegen
+    // Berechne Entfernung zu Brixen
+    const distanceToBrixen = calculateDistance(lat, lon, brixenLat, brixenLon);
+    
+    // Wenn der Punkt außerhalb von 10km um Brixen liegt, wenden wir verschiedene Korrekturmethoden an
+    if (distanceToBrixen > 10) {
+      console.log(`[PlanBMap] Marker "${featureName}" liegt ${distanceToBrixen.toFixed(2)}km von Brixen entfernt - zu weit!`);
+      
+      // KORREKTURMETHODE 1: Dezimalpunkt-Korrektur für Längengrad
+      if (lon > 20 && lon < 200) {
+        const correctedLon = lon / 10;
+        const newDistance = calculateDistance(lat, correctedLon, brixenLat, brixenLon);
+        
+        if (newDistance < 10) {
+          console.log(`[PlanBMap] Korrigiere Längengrad für "${featureName}": ${lon} -> ${correctedLon} (neue Distanz: ${newDistance.toFixed(2)}km)`);
+          lon = correctedLon;
+          feature.geometry.coordinates[0] = correctedLon;
+          hasBeenCorrected = true;
+        }
       }
+      
+      // KORREKTURMETHODE 2: Dezimalpunkt-Korrektur für Breitengrad
+      if (!hasBeenCorrected && lat > 0 && lat < 10) {
+        const correctedLat = lat * 10;
+        const newDistance = calculateDistance(correctedLat, lon, brixenLat, brixenLon);
+        
+        if (newDistance < 10) {
+          console.log(`[PlanBMap] Korrigiere Breitengrad für "${featureName}": ${lat} -> ${correctedLat} (neue Distanz: ${newDistance.toFixed(2)}km)`);
+          lat = correctedLat;
+          feature.geometry.coordinates[1] = correctedLat;
+          hasBeenCorrected = true;
+        }
+      }
+      
+      // KORREKTURMETHODE 3: Vertauschte Koordinaten
+      if (!hasBeenCorrected) {
+        const distanceWithSwappedCoords = calculateDistance(lon, lat, brixenLat, brixenLon);
+        
+        if (distanceWithSwappedCoords < 10) {
+          console.log(`[PlanBMap] Vertauschte Koordinaten für "${featureName}": [${lon}, ${lat}] -> [${lat}, ${lon}] (neue Distanz: ${distanceWithSwappedCoords.toFixed(2)}km)`);
+          feature.geometry.coordinates = [lat, lon];
+          hasBeenCorrected = true;
+        }
+      }
+      
+      // KORREKTURMETHODE 4: Spezielle Annahme - Manche Punkte im Ausland könnten durch falsche Dezimalpunkt-Verschiebung entstanden sein
+      if (!hasBeenCorrected) {
+        // Versuche verschiedene Multiplikatoren/Divisoren für komplexere Fälle
+        const potentialCorrections = [
+          { mult_lat: 1, mult_lon: 0.1 },    // Längengrad um eine Stelle zu weit rechts
+          { mult_lat: 10, mult_lon: 1 },     // Breitengrad um eine Stelle zu weit links
+          { mult_lat: 0.1, mult_lon: 1 },    // Breitengrad um eine Stelle zu weit rechts
+          { mult_lat: 1, mult_lon: 10 },     // Längengrad um eine Stelle zu weit links
+          { mult_lat: 10, mult_lon: 0.1 },   // Beide um je eine Stelle verschoben
+          { mult_lat: 0.1, mult_lon: 10 }    // Beide um je eine Stelle in andere Richtung verschoben
+        ];
+        
+        for (const correction of potentialCorrections) {
+          const correctedLat = lat * correction.mult_lat;
+          const correctedLon = lon * correction.mult_lon;
+          const newDistance = calculateDistance(correctedLat, correctedLon, brixenLat, brixenLon);
+          
+          if (newDistance < 10) {
+            console.log(`[PlanBMap] Komplexe Korrektur für "${featureName}": [${lon}, ${lat}] -> [${correctedLon}, ${correctedLat}] (neue Distanz: ${newDistance.toFixed(2)}km)`);
+            feature.geometry.coordinates = [correctedLon, correctedLat];
+            hasBeenCorrected = true;
+            break;
+          }
+        }
+      }
+      
+      // LETZTE RETTUNG: Wenn keine Korrektur funktioniert hat, setzen wir den Punkt nahe Brixen
+      if (!hasBeenCorrected) {
+        console.log(`[PlanBMap] Keine passende Korrektur für "${featureName}" gefunden. Setze auf Standardposition in Brixen.`);
+        
+        // Setze auf einen Punkt nahe Brixen mit leichtem Versatz für bessere Sichtbarkeit
+        const randomOffset = (Math.random() - 0.5) * 0.005; // etwa 250-500m Versatz
+        feature.geometry.coordinates = [brixenLon + randomOffset, brixenLat + randomOffset];
+      }
+    }
+    
+    return feature;
+  };
+
+  // Funktion zur Berechnung der Entfernung zwischen zwei Punkten (Haversine-Formel)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Erdradius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c; // Entfernung in km
+    return distance;
+  };
+
+  // Funktion zum Prüfen, ob Koordinaten innerhalb des erlaubten Bereichs liegen
+  const isWithinAllowedArea = (lon: number, lat: number): boolean => {
+    // Referenzpunkt für Brixen/Südtirol (korrigierte Werte)
+    const centerLat = 46.7165;  // Korrigiert von 4.67165
+    const centerLon = 11.566;   // Korrigiert von 116.566
+    
+    // Maximale Entfernung in km
+    const maxDistance = 10;
+    
+    // Berechne die Entfernung
+    const distance = calculateDistance(lat, lon, centerLat, centerLon);
+    
+    // Gib die Entfernung für Debugging-Zwecke aus
+    // console.log(`Entfernung von [${lon}, ${lat}] zum Zentrum: ${distance.toFixed(2)} km`);
+    
+    // True, wenn die Entfernung kleiner als maxDistance ist
+    return distance <= maxDistance;
+  };
+
+  // Generiere dynamisch Farben für alle Kategorien
+  const dynamicCategoryColors = useMemo(() => {
+    const colors = { ...categoryColors };
+    const uniqueCategories = new Set<string>();
+    
+    // Sammle alle Kategorien aus den Markern
+    memoizedMarkers.features.forEach(feature => {
+      // Sicherheitsprüfung für ungültige Features
+      if (!feature || !feature.properties) return;
+      
+      // Wenn keine Kategorie vorhanden ist, eine Default-Kategorie "unbekannt" setzen
+      const kategorie = feature.properties.Kategorie || "unbekannt";
+      uniqueCategories.add(kategorie);
     });
     
     // Generiere Farben für nicht vordefinierte Kategorien
-    const predefinedCategories = Object.keys(categoryColors);
     Array.from(uniqueCategories).forEach(category => {
-      if (!predefinedCategories.includes(category)) {
-        // Einfache Farbgenerierung basierend auf dem Kategorienamen
+      if (!colors[category]) {
         const hue = Math.abs(category.charCodeAt(0) * 137.5) % 360;
         colors[category] = `hsl(${hue}, 70%, 50%)`;
       }
@@ -127,87 +253,92 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
     return colors;
   }, [memoizedMarkers, categoryColors]);
 
-  // Protokolliere beim ersten Rendern und bei Props-Änderungen
-  useEffect(() => {
-    renderCount.current += 1;
-    console.log(`[PlanBMap ${componentId.current}] Komponente gerendert #${renderCount.current}, mapRef.current=${!!mapRef.current}`);
-    
-    // Protokolliere die wichtigsten Props
-    console.log(`[PlanBMap ${componentId.current}] Props:`, {
-      markers: `${markers.features.length} Features`,
-      mapStyle,
-      center,
-      zoom
-    });
-    
-    // Bei jedem neuen Render (aber nicht beim Unmount) setzen wir isUserInteraction zurück,
-    // es sei denn, wir sind im Picker-Modus
-    
-    // WICHTIG: Wir setzen isUserInteraction NICHT zurück, wenn ein Dialog geöffnet ist
-    // Das verhindert, dass der Zoom zurückgesetzt wird, wenn ein Detail-Dialog geöffnet wird
-    
-    // Nur in bestimmten Fällen zurücksetzen, z.B. bei grundlegenden Änderungen wie
-    // neuem Kartenstil oder komplett neuen Markern
-    if (!isPickingLocation && renderCount.current <= 1) {
-      console.log(`[PlanBMap ${componentId.current}] Resetting isUserInteraction beim ersten Render`);
-      mapStateRef.current.isUserInteraction = false;
-    } else {
-      console.log(`[PlanBMap ${componentId.current}] Behalte isUserInteraction = ${mapStateRef.current.isUserInteraction}`);
-    }
-    
-    return () => {
-      console.log(`[PlanBMap ${componentId.current}] Cleanup-Effekt für Render #${renderCount.current}`);
-    };
-  }, [markers, mapStyle, center, zoom, isPickingLocation]);
-
-  const getMapStyle = useCallback(async (): Promise<string> => {
+  // URL für den Kartenstil mit API-Key zusammenbauen
+  const getMapStyle = async (): Promise<string> => {
     let effectiveStyle = mapStyle;
     
-    // Füge den API-Key hinzu, wenn er im URL-String fehlt und vorhanden ist
     if (mapApiKey && !effectiveStyle.includes('key=')) {
       effectiveStyle += effectiveStyle.includes('?') ? `&key=${mapApiKey}` : `?key=${mapApiKey}`;
     }
     
-    console.log(`[PlanBMap ${componentId.current}] Verwende Map-Stil: ${effectiveStyle}`);
     return effectiveStyle;
-  }, [mapStyle, mapApiKey]);
+  };
 
-  // Verbesserte Version des Map-Initialisierungs-Effekts mit Änderungserkennung
+  // Initialisiere die Karte einmalig
   useEffect(() => {
-    // Einfache Funktion zum Erkennen von wesentlichen Änderungen, die ein Neuladen erfordern
-    const checkForSignificantChanges = () => {
-      const currentDeps = {
-        markerCount: memoizedMarkers.features.length,
-        mapStyle,
-        centerLat: typeof center === 'object' && 'lat' in center ? center.lat : null,
-        centerLng: typeof center === 'object' && 'lon' in center ? center.lon : null,
-        zoom,
-      };
-      
-      // Speichere aktuelle Werte für nächsten Vergleich
-      prevDepsRef.current = currentDeps;
-    };
-
-    if (!mapContainer.current) {
-      console.warn(`[PlanBMap ${componentId.current}] Map-Container nicht gefunden`);
-      return;
-    }
-    
-    // Prüfe, ob die Karte bereits initialisiert wurde oder gerade initialisiert wird
-    if (hasInitialized.current || mapRef.current) {
-      console.log(`[PlanBMap ${componentId.current}] Map bereits initialisiert (${hasInitialized.current}), überspringe Initialisierung`);
-      return;
-    }
-    
-    // Setze Flag, dass Initialisierung läuft
-    hasInitialized.current = true;
-
-    console.log(`[PlanBMap ${componentId.current}] Starte Karteninitialisierung...`);
+    if (!mapContainer.current || mapRef.current) return;
 
     const initializeMap = async () => {
       try {
+        // Erfasse Marker ohne Kategorie
+        const markersWithoutCategory = memoizedMarkers.features.filter(
+          feature => !feature.properties?.Kategorie
+        );
+        
+        console.log(`[PlanBMap] ${markersWithoutCategory.length} Marker ohne Kategorie gefunden, werden als "unbekannt" kategorisiert:`);
+        markersWithoutCategory.forEach((feature, index) => {
+          if (index < 10) { // Zeige nur die ersten 10 an
+            const coords = feature.geometry.type === 'Point' && 'coordinates' in feature.geometry ? 
+              feature.geometry.coordinates : null;
+            console.log(`  - Marker ohne Kategorie #${index}: Name=${feature.properties?.Name}, Koordinaten=${coords}`);
+          }
+        });
+        if (markersWithoutCategory.length > 10) {
+          console.log(`  ... und ${markersWithoutCategory.length - 10} weitere Marker ohne Kategorie`);
+        }
+        
+        // Erfasse Marker mit Null-Koordinaten
+        const markersWithZeroCoordinates = memoizedMarkers.features.filter(
+          feature => {
+            if (feature.geometry?.type !== 'Point') return false;
+            const [lon, lat] = feature.geometry.coordinates;
+            return lon === 0 && lat === 0;
+          }
+        );
+        
+        console.log(`[PlanBMap] ${markersWithZeroCoordinates.length} Marker mit Koordinaten [0,0] gefunden:`);
+        markersWithZeroCoordinates.forEach((feature, index) => {
+          if (index < 10) {
+            console.log(`  - Marker mit Nullkoordinaten #${index}: Name=${feature.properties?.Name}, Kategorie=${feature.properties?.Kategorie || 'unbekannt'}`);
+          }
+        });
+        if (markersWithZeroCoordinates.length > 10) {
+          console.log(`  ... und ${markersWithZeroCoordinates.length - 10} weitere Marker mit Nullkoordinaten`);
+        }
+        
+        // Erfasse Marker außerhalb des erlaubten Bereichs
+        const markersOutsideAllowedArea = memoizedMarkers.features.filter(
+          feature => {
+            // Prüfe zuerst, ob die Geometrie existiert
+            if (!feature.geometry || feature.geometry.type !== 'Point') return false;
+            
+            // Koordinaten korrigieren (falls nötig)
+            let [lon, lat] = feature.geometry.coordinates || [0, 0];
+            if (lon > 20 && lon < 200) lon = lon / 10;
+            if (lat > 0 && lat < 10) lat = lat * 10;
+            
+            // Prüfen, ob sie innerhalb des erlaubten Bereichs liegen
+            return !isWithinAllowedArea(lon, lat);
+          }
+        );
+        
+        console.log(`[PlanBMap] ${markersOutsideAllowedArea.length} Marker außerhalb des 10km-Radius um Brixen gefunden:`);
+        markersOutsideAllowedArea.forEach((feature, index) => {
+          if (index < 10) {
+            let [lon, lat] = feature.geometry.type === 'Point' && 'coordinates' in feature.geometry ? 
+              feature.geometry.coordinates : [0, 0];
+            if (lon > 20 && lon < 200) lon = lon / 10;
+            if (lat > 0 && lat < 10) lat = lat * 10;
+            
+            console.log(`  - Marker außerhalb #${index}: Name=${feature.properties?.Name}, Kategorie=${feature.properties?.Kategorie || 'unbekannt'}, Koordinaten=[${lon}, ${lat}]`);
+          }
+        });
+        if (markersOutsideAllowedArea.length > 10) {
+          console.log(`  ... und ${markersOutsideAllowedArea.length - 10} weitere Marker außerhalb des erlaubten Bereichs`);
+        }
+        
         const styleUrl = await getMapStyle();
-        console.log(`[PlanBMap ${componentId.current}] Map wird initialisiert mit Stil: ${styleUrl}`);
+        console.log(`[PlanBMap] Map wird initialisiert mit Stil: ${styleUrl}`);
         
         // Initialisiere die Karte
         const map = new maplibregl.Map({
@@ -218,7 +349,7 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
           pitchWithRotate: false, // Disable tilting the map
         });
         
-        console.log(`[PlanBMap ${componentId.current}] Map-Objekt erstellt`);
+        console.log(`[PlanBMap] Map-Objekt erstellt`);
         mapRef.current = map;
         
         // Create a popup, but don't add it to the map yet
@@ -251,157 +382,16 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
               zoom: newZoom,
               isUserInteraction: true
             };
-            
-            console.log(`[PlanBMap ${componentId.current}] Kartenzustand AKTUALISIERT durch Benutzerinteraktion:`, {
-              center: mapStateRef.current.center,
-              zoom: mapStateRef.current.zoom
-            });
-          } else {
-            // Bei programmatischen Änderungen aktualisieren wir nur die Werte, nicht das Flag
-            mapStateRef.current.center = { lat: newCenter.lat, lon: newCenter.lng };
-            mapStateRef.current.zoom = newZoom;
-            
-            console.log(`[PlanBMap ${componentId.current}] Kartenzustand durch PROGRAMM geändert (Flag bleibt):`, {
-              center: mapStateRef.current.center,
-              zoom: mapStateRef.current.zoom,
-              isUserInteraction: mapStateRef.current.isUserInteraction
-            });
           }
         });
-
-        // Zeige einen roten temporären Marker, wenn der Ortsauswahl-Modus aktiv ist
-        map.on('mousemove', (e) => {
-          if (isPickingLocation) {
-            // Ändere den Cursor zur Anzeige, dass ein Klick möglich ist
-            map.getCanvas().style.cursor = 'crosshair';
-            
-            // Wenn bereits ein temporärer Marker existiert, bewege ihn zur aktuellen Mausposition
-            if (tempMarkerRef.current) {
-              tempMarkerRef.current.setLngLat([e.lngLat.lng, e.lngLat.lat]);
-            }
-          } else {
-            // Zurück zum Standardcursor
-            if (map.getCanvas().style.cursor === 'crosshair') {
-              map.getCanvas().style.cursor = '';
-            }
-          }
-        });
-        
-        // KRITISCH: Registeriere den Klick-Handler BEVOR die anderen Layer-Handler registriert werden
-        // damit er Vorrang hat, wenn im Ortsauswahl-Modus
-        map.on('click', (e) => {
-          // Wir verwenden drei Wege, um zu erkennen, ob wir im Picker-Modus sind
-          const propsPickingMode = isPickingLocation;
-          const markerExists = !!tempMarkerRef.current;
-          const globalPickingMode = !!window._planBPickerModeActive;
-          
-          console.log(`[PlanBMap ${componentId.current}] MAP CLICK - Picker-Status:`, {
-            propsPickingMode,
-            markerExists,
-            globalPickingMode
-          });
-          
-          // WICHTIG: Wenn EINER der drei Indikatoren auf Picker-Modus hinweist, nehmen wir an, dass er aktiv ist
-          const isInPickerMode = propsPickingMode || markerExists || globalPickingMode;
-          
-          if (isInPickerMode && onMapClick) {
-            console.log(`[PlanBMap ${componentId.current}] Picker-Modus AKTIV - verarbeite Klick`);
-            
-            // Versuche, Klicks auf andere Elemente zu verhindern
-            if (e.originalEvent) {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.preventDefault();
-            }
-            
-            // Koordinaten extrahieren
-            const coordinates: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-            console.log(`[PlanBMap ${componentId.current}] Koordinaten bei Klick:`, coordinates);
-            
-            try {
-              // Sofort den Marker entfernen
-              if (tempMarkerRef.current) {
-                console.log(`[PlanBMap ${componentId.current}] Entferne temporären Marker`);
-                tempMarkerRef.current.remove();
-                tempMarkerRef.current = null;
-              }
-              
-              // Cursor zurücksetzen
-              map.getCanvas().style.cursor = '';
-              
-              // Globalen Status zurücksetzen
-              window._planBPickerModeActive = false;
-              
-              // WICHTIG: Speichere die ausgewählten Koordinaten in einer globalen Variable,
-              // damit die übergeordnete Komponente darauf zugreifen kann, falls der Callback verloren geht
-              window._planBLastSelectedCoordinates = coordinates;
-              
-              // Zustand für späteres Zurücksetzen speichern
-              mapStateRef.current = {
-                center: { lat: map.getCenter().lat, lon: map.getCenter().lng },
-                zoom: map.getZoom(),
-                isUserInteraction: true
-              };
-              
-              // WICHTIG: Callback aufrufen
-              console.log(`[PlanBMap ${componentId.current}] Rufe onMapClick auf mit:`, coordinates);
-              onMapClick(coordinates);
-              console.log(`[PlanBMap ${componentId.current}] onMapClick Callback ausgeführt`);
-              
-              // WICHTIG: Zusätzlich ein Event auslösen, um sicherzustellen, dass der Dialog wieder geöffnet wird
-              // Dies ist ein Fallback für den Fall, dass der Callback verloren geht
-              setTimeout(() => {
-                console.log(`[PlanBMap ${componentId.current}] Löse forceReopenDialog-Event aus als Fallback`);
-                const reopenEvent = new CustomEvent('forceReopenDialog', {
-                  detail: { coordinates }
-                });
-                document.dispatchEvent(reopenEvent);
-              }, 300);
-              
-              // Da onMapClick den Dialog wieder öffnen sollte, sind wir fertig
-              return;
-            } catch (error) {
-              console.error(`[PlanBMap ${componentId.current}] Fehler bei Koordinatenauswahl:`, error);
-              
-              // Bei Fehler trotzdem Event auslösen als Fallback
-              console.log(`[PlanBMap ${componentId.current}] Löse forceReopenDialog-Event aus bei FEHLER`);
-              const reopenEvent = new CustomEvent('forceReopenDialog', {
-                detail: { coordinates }
-              });
-              document.dispatchEvent(reopenEvent);
-            }
-          } else {
-            console.log(`[PlanBMap ${componentId.current}] KEIN Picker-Modus aktiv - ignoriere Klick für Ortsauswahl`);
-          }
-        });
-
-        // Initialisiere oder entferne den temporären Marker, wenn sich der isPickingLocation-Status ändert
-        if (isPickingLocation) {
-          console.log(`[PlanBMap ${componentId.current}] Ortsauswahl-Modus aktiviert`);
-          
-          // Erstelle einen temporären Marker, wenn er noch nicht existiert
-          if (!tempMarkerRef.current) {
-            const center = map.getCenter();
-            tempMarkerRef.current = new maplibregl.Marker({
-              color: '#FF0000',
-              draggable: false
-            }).setLngLat([center.lng, center.lat]).addTo(map);
-          }
-        } else {
-          // Entferne den temporären Marker, wenn der Ortsauswahl-Modus beendet wird
-          if (tempMarkerRef.current) {
-            console.log(`[PlanBMap ${componentId.current}] Ortsauswahl-Modus deaktiviert, entferne temporären Marker`);
-            tempMarkerRef.current.remove();
-            tempMarkerRef.current = null;
-          }
-        }
 
         // Funktion zum Laden der Marker, die wir sowohl beim ersten Load als auch bei Stil-Updates verwenden
         const loadMarkers = async () => {
-          console.log(`[PlanBMap ${componentId.current}] Map geladen, füge Marker hinzu...`);
+          console.log(`[PlanBMap] Map geladen, füge Marker hinzu...`);
           
           try {
             // Lade das Marker-Bild
-            console.log(`[PlanBMap ${componentId.current}] Lade Marker-Bild...`);
+            console.log(`[PlanBMap] Lade Marker-Bild...`);
             
             // Füge das Bild nur hinzu, wenn es noch nicht existiert
             if (!map.hasImage("custom-marker")) {
@@ -409,31 +399,8 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
                 "https://maplibre.org/maplibre-gl-js/docs/assets/custom_marker.png"
               );
               map.addImage("custom-marker", image.data);
-              console.log(`[PlanBMap ${componentId.current}] Marker-Bild geladen`);
+              console.log(`[PlanBMap] Marker-Bild geladen`);
             }
-
-            /* Deaktiviert wegen Problemen mit osm2geojson-lite
-            // Lade Drinking Water Points wenn aktiviert
-            if (showDrinkingWater) {
-              const query_water = `[out:json][timeout:25];area(id:3600047300)->.searchArea;nwr["amenity"="drinking_water"](area.searchArea);out geom;`;
-              const geojson_water = await overpassToGeojson(query_water);
-
-              map.addSource("drinking_water", {
-                type: "geojson",
-                data: geojson_water,
-              });
-
-              map.addLayer({
-                id: "drinking_water",
-                source: "drinking_water",
-                type: "circle",
-                paint: {
-                  "circle-radius": 4,
-                  "circle-color": "orange",
-                },
-              });
-            }
-            */
 
             // Füge für jede Kategorie eine Ebene hinzu
             const newLayerIDs: string[] = [];
@@ -449,23 +416,59 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
               newLayerIDs.push(layerID);
 
               // Filtere die Features nach Kategorie
-              const filteredFeatures = memoizedMarkers.features.filter(
-                (feature: Feature) => 
-                  feature.properties && feature.properties.Kategorie === category
-              );
+              const filteredFeatures = memoizedMarkers.features
+                .filter(feature => {
+                  // Kategorie des Features ermitteln
+                  const featureKategorie = feature.properties?.Kategorie || "unbekannt";
+                  
+                  // Prüfen, ob das Feature zur aktuellen Kategorie gehört
+                  return featureKategorie === category;
+                })
+                .map((feature: Feature) => {
+                  // Debug-Informationen für jedes Feature ausgeben
+                  if (DEBUG_MODE && feature.geometry?.type === 'Point') {
+                    const coords = (feature.geometry as any).coordinates;
+                    const featureName = feature.properties?.Name || 'Unbenannt';
+                    console.log(`[PlanBMap-DEBUG] Feature vor Korrektur: "${featureName}" | Kategorie: ${category} | Koordinaten: [${coords[0]}, ${coords[1]}]`);
+                  }
+                  
+                  // Korrigiere falsche Koordinaten
+                  const correctedFeature = fixCoordinates(feature);
+                  
+                  // Debug-Informationen für korrigierte Features ausgeben
+                  if (DEBUG_MODE && feature.geometry?.type === 'Point') {
+                    // Typprüfung für beide Features
+                    const originalFeatureWithCoords = feature.geometry as any;
+                    const correctedFeatureWithCoords = correctedFeature.geometry as any;
+                    
+                    // Nur weiter prüfen, wenn sich die Koordinaten geändert haben
+                    if (correctedFeatureWithCoords.coordinates[0] !== originalFeatureWithCoords.coordinates[0] ||
+                        correctedFeatureWithCoords.coordinates[1] !== originalFeatureWithCoords.coordinates[1]) {
+                      
+                      const originalCoords = originalFeatureWithCoords.coordinates;
+                      const correctedCoords = correctedFeatureWithCoords.coordinates;
+                      console.log(`[PlanBMap-DEBUG] Feature KORRIGIERT: "${correctedFeature.properties?.Name}" | Original: [${originalCoords[0]}, ${originalCoords[1]}] | Korrigiert: [${correctedCoords[0]}, ${correctedCoords[1]}]`);
+                    }
+                  }
+                  
+                  return correctedFeature;
+                });
 
               console.log(`[PlanBMap ${componentId.current}] Füge Kategorie ${category} mit ${filteredFeatures.length} Features hinzu`);
+              
+              // Detaillierte Marker-Informationen für Debugging
+              filteredFeatures.forEach((feature: Feature, index) => {
+                if (index < 5) { // Limitiere Ausgabe auf die ersten 5 Marker pro Kategorie
+                  const coords = feature.geometry.type === 'Point' ? feature.geometry.coordinates : null;
+                  console.log(`  - Marker #${index}: Name=${feature.properties?.Name}, Koordinaten=${coords}, Properties:`, feature.properties);
+                }
+              });
+              if (filteredFeatures.length > 5) {
+                console.log(`  ... und ${filteredFeatures.length - 5} weitere Marker`);
+              }
 
-              // Prüfe, ob die Quelle bereits existiert
-              if (map.getSource(layerID)) {
-                // Aktualisiere die bestehende Quelle mit neuen Daten
-                const source = map.getSource(layerID) as maplibregl.GeoJSONSource;
-                source.setData({
-                  type: 'FeatureCollection',
-                  features: filteredFeatures
-                });
-              } else {
-                // Füge eine neue Quelle für jede Kategorie hinzu
+              // Quelle und Layer hinzufügen
+              if (!map.getSource(layerID)) {
                 map.addSource(layerID, {
                   type: "geojson",
                   data: {
@@ -474,7 +477,6 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
                   },
                 });
 
-                // Füge die Ebene zur Karte hinzu
                 map.addLayer({
                   id: layerID,
                   source: layerID,
@@ -485,176 +487,119 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
                   },
                 });
 
-                // Popup events
-                map.on("mouseenter", layerID, (e) => {
-                  if (!e.features || e.features.length === 0) return;
-                  
-                  map.getCanvas().style.cursor = "pointer";
-                  
-                  const feature = e.features[0];
-                  // Sicherstellen, dass geometry und properties vorhanden sind
-                  if (!feature.geometry || !feature.properties) return;
-                  
-                  // Für Point-Geometrien
-                  if (feature.geometry.type === 'Point' && 'coordinates' in feature.geometry) {
-                    const coordinates = [...feature.geometry.coordinates];
-                    const properties = feature.properties;
-                    const description = properties.Beschreibung;
-                    const name = properties.Name;
-                    const öffnungszeiten = properties.Öffnungszeiten;
+                console.log(`[PlanBMap] Layer "${layerID}" erfolgreich erstellt mit ${filteredFeatures.length} Markern`);
 
-                    let popup_content = `<h3>${name}</h3>`;
-                    if (description) {
-                      popup_content += `<p>${description}</p>`;
+                // Event-Handler nur hinzufügen, wenn sie noch nicht registriert wurden
+                if (!registeredEventLayers.has(layerID)) {
+                  // Event-Handler für Hover
+                  map.on("mouseenter", layerID, (e) => {
+                    if (!e.features?.length) return;
+                    
+                    map.getCanvas().style.cursor = "pointer";
+                    
+                    const feature = e.features[0];
+                    if (!feature.geometry || !feature.properties) return;
+                    
+                    if (feature.geometry.type === 'Point' && 'coordinates' in feature.geometry) {
+                      const coordinates = [...feature.geometry.coordinates];
+                      const { Name, Beschreibung, Öffnungszeiten } = feature.properties;
+
+                      let popupContent = `<h3>${Name}</h3>`;
+                      if (Beschreibung) popupContent += `<p>${Beschreibung}</p>`;
+                      if (Öffnungszeiten) popupContent += `<p><b>Öffnungszeiten</b>: ${Öffnungszeiten}</p>`;
+
+                      popup.setLngLat(coordinates as [number, number])
+                        .setHTML(popupContent)
+                        .addTo(map);
                     }
-                    if (öffnungszeiten) {
-                      popup_content += `<p><b>Öffnungszeiten</b>: ${öffnungszeiten}</p>`;
+                  });
+
+                  // Event-Handler für Marker-Klicks
+                  map.on("click", layerID, (e) => {
+                    if (!e.features?.length || !onMarkerClick) return;
+                    
+                    const feature = e.features[0];
+                    
+                    // Feature-ID ermitteln
+                    let featureId = feature.id;
+                    if (feature.properties?._id) {
+                      featureId = feature.properties._id;
+                    } else if (feature.properties?.id) {
+                      featureId = feature.properties.id;
                     }
-                    popup_content += `
-                    <details>
-                      <summary><b>Properties</b></summary>
-                      <pre>${JSON.stringify(properties, null, 4)}</pre>
-                    </details>`;
+                    
+                    // In geeignetes Format für Handler umwandeln
+                    const geoJsonFeature: MongoDBFeature = {
+                      type: "Feature",
+                      geometry: feature.geometry,
+                      properties: {
+                        ...feature.properties,
+                        _id: featureId !== undefined ? String(featureId) : undefined
+                      },
+                      _id: featureId !== undefined ? String(featureId) : undefined
+                    };
+                    
+                    // Aktuellen Zustand speichern und Handler aufrufen
+                    const currentCenter = map.getCenter();
+                    const currentZoom = map.getZoom();
+                    
+                    mapStateRef.current = {
+                      center: { lat: currentCenter.lat, lon: currentCenter.lng },
+                      zoom: currentZoom,
+                      isUserInteraction: true
+                    };
+                    
+                    onMarkerClick(geoJsonFeature);
+                  });
 
-                    popup.setLngLat(coordinates as [number, number])
-                      .setHTML(popup_content)
-                      .addTo(map);
-                  }
-                });
-
-                // Marker-Klick-Event hinzufügen (für die Detailansicht)
-                map.on("click", layerID, (e) => {
-                  if (!e.features || e.features.length === 0 || !onMarkerClick) return;
-                  
-                  // KRITISCHER PUNKT: Hier den aktuellen Kartenzustand speichern
-                  // Diese Funktion wird VOR dem Öffnen des Dialogs aufgerufen
-                  const currentZoom = map.getZoom();
-                  const currentCenter = map.getCenter();
-                  
-                  console.log(`[PlanBMap ${componentId.current}] Marker click event:`, {
-                    mapCenter: currentCenter,
-                    mapZoom: currentZoom
+                  // Event-Handler für Mouse-Leave
+                  map.on("mouseleave", layerID, () => {
+                    map.getCanvas().style.cursor = "";
+                    popup.remove();
                   });
                   
-                  const feature = e.features[0];
-                  
-                  // Tiefere Inspektion der Quelldaten für Debug-Zwecke
-                  console.log("Angeklicktes Map-Feature:", feature);
-                  console.log("Feature ID:", feature.id);
-                  console.log("Feature Properties:", feature.properties);
-                  
-                  // Ermittle die ID aus verschiedenen möglichen Quellen
-                  let featureId = feature.id;
-                  
-                  // Prüfe alle möglichen Stellen, wo die ID sein könnte
-                  if (feature.properties) {
-                    // Manchmal ist die _id direkt in den Properties
-                    if (feature.properties._id) {
-                      featureId = feature.properties._id;
-                      console.log("ID aus properties._id extrahiert:", featureId);
-                    }
-                    // Manchmal ist die ID unter einem anderen Namen in den Properties
-                    else if (feature.properties.id) {
-                      featureId = feature.properties.id;
-                      console.log("ID aus properties.id extrahiert:", featureId);
-                    }
-                    // Manchmal ist die _id in einer verschachtelten Eigenschaft wie properties.properties._id
-                    else if (feature.properties.properties && feature.properties.properties._id) {
-                      featureId = feature.properties.properties._id;
-                      console.log("ID aus properties.properties._id extrahiert:", featureId);
-                    }
-                  }
-                  
-                  // Konvertiere das MapLibre-Feature zurück in ein GeoJSON-Feature
-                  const geoJsonFeature: MongoDBFeature = {
-                    type: "Feature",
-                    geometry: feature.geometry,
-                    properties: {
-                      ...feature.properties,
-                      // Stelle sicher, dass die ID auch in den Properties ist
-                      _id: featureId !== undefined ? String(featureId) : undefined
-                    },
-                    // ID im Root-Objekt
-                    _id: featureId !== undefined ? String(featureId) : undefined
-                  };
-                  
-                  // Logging für Debugging
-                  console.log("Feature mit ID zum Detail-Handler übergeben:", geoJsonFeature);
-                  console.log(`[PlanBMap ${componentId.current}] Aktueller Zoom BEVOR onMarkerClick:`, currentZoom);
-                  
-                  // KRITISCH: Speichere den aktuellen Zustand, um sicherzustellen, dass er erhalten bleibt
-                  // und setze isUserInteraction auf true, um zu verhindern, dass die Karte zurückgesetzt wird
-                  mapStateRef.current = {
-                    center: { lat: currentCenter.lat, lon: currentCenter.lng },
-                    zoom: currentZoom,
-                    isUserInteraction: true
-                  };
-                  
-                  console.log(`[PlanBMap ${componentId.current}] MARKER CLICK: Speichere Zustand in Ref:`, mapStateRef.current);
-                  
-                  // Rufe onMarkerClick auf, was den Dialog öffnen wird
-                  onMarkerClick(geoJsonFeature);
-                  
-                  // Überprüfe, ob der Zoom nach dem Aufruf erhalten bleibt
-                  console.log(`[PlanBMap ${componentId.current}] Aktueller Zoom NACH onMarkerClick:`, map.getZoom());
-                  
-                  // EXTRA-SICHERUNG: Nach einer kurzen Verzögerung nochmals prüfen und ggf. korrigieren
-                  setTimeout(() => {
-                    const newZoom = map.getZoom();
-                    if (Math.abs(newZoom - currentZoom) > 0.01) {
-                      console.log(`[PlanBMap ${componentId.current}] ZOOM KORREKTUR: von ${newZoom} zurück zu ${currentZoom}`);
-                      map.setZoom(currentZoom);
-                    }
-                  }, 100);
+                  // Merke, dass Event-Handler für diesen Layer registriert wurden
+                  registeredEventLayers.add(layerID);
+                }
+
+                // Nur Checkboxen erstellen, wenn filterGroupRef existiert
+                if (filterGroupRef.current) {
+                  const input = document.createElement("input");
+                  input.type = "checkbox";
+                  input.id = layerID;
+                  input.checked = true;
+
+                  const label = document.createElement("label");
+                  label.setAttribute("for", layerID);
+                  label.textContent = category;
+
+                  filterGroupRef.current.appendChild(input);
+                  filterGroupRef.current.appendChild(label);
+
+                  input.addEventListener("change", (e) => {
+                    const target = e.target as HTMLInputElement;
+                    map.setLayoutProperty(
+                      layerID,
+                      "visibility",
+                      target.checked ? "visible" : "none"
+                    );
+                  });
+                }
+              } else {
+                // Quelle existiert bereits, aktualisiere nur die Daten
+                const source = map.getSource(layerID) as maplibregl.GeoJSONSource;
+                source.setData({
+                  type: "FeatureCollection",
+                  features: filteredFeatures,
                 });
-
-                map.on("mouseleave", layerID, () => {
-                  map.getCanvas().style.cursor = "";
-                  popup.remove();
-                });
-              }
-
-              // Nur Checkboxen erstellen, wenn filterGroupRef existiert
-              if (filterGroupRef.current) {
-                // Checkbox und Label für die Ebene erstellen
-                const input = document.createElement("input");
-                input.type = "checkbox";
-                input.id = layerID;
-                input.checked = true;
-
-                const label = document.createElement("label");
-                label.setAttribute("for", layerID);
-                label.textContent = category;
-
-                filterGroupRef.current.appendChild(input);
-                filterGroupRef.current.appendChild(label);
-
-                // Event-Listener hinzufügen
-                input.addEventListener("change", (e) => {
-                  const target = e.target as HTMLInputElement;
-                  map.setLayoutProperty(
-                    layerID,
-                    "visibility",
-                    target.checked ? "visible" : "none"
-                  );
-                });
+                console.log(`[PlanBMap] Existierende Quelle "${layerID}" aktualisiert mit ${filteredFeatures.length} Markern`);
               }
             });
 
-            setLayerIDs(newLayerIDs);
-            console.log(`[PlanBMap ${componentId.current}] Layer IDs gesetzt:`, newLayerIDs);
-            
-            // Textfilter-Funktionalität hinzufügen
+            // Filter-Funktionalität hinzufügen
             if (filterInputRef.current) {
-              console.log(`[PlanBMap ${componentId.current}] Filter-Input gefunden, füge Event-Listener hinzu`);
-              
-              // Statt das Element zu klonen, speichere das aktuelle Element
-              const currentFilterInput = filterInputRef.current;
-              
-              // Definiere die Filter-Funktion
-              const filterFunction = (e: Event) => {
+              filterInputRef.current.addEventListener("keyup", (e) => {
                 const value = (e.target as HTMLInputElement).value.trim().toLowerCase();
-                console.log(`[PlanBMap ${componentId.current}] Filter aktualisiert: "${value}"`);
 
                 newLayerIDs.forEach((layerID) => {
                   if (value === "") {
@@ -662,20 +607,14 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
                     return;
                   }
 
-                  // Filter für jede Ebene erstellen
                   const categoryName = layerID.split("-")[1];
                   const filters: any[] = ["any"];
                   
-                  memoizedMarkers.features.forEach((feature: Feature) => {
-                    if (feature.properties && feature.properties.Kategorie === categoryName) {
-                      const properties = feature.properties;
+                  memoizedMarkers.features.forEach((feature) => {
+                    if (feature.properties?.Kategorie === categoryName) {
                       for (const key of ["Name", "Beschreibung"]) {
-                        const property = properties[key as keyof typeof properties];
-                        if (
-                          typeof property === "string" &&
-                          property.toLowerCase().includes(value)
-                        ) {
-                          // Wir müssen den Filter korrekt aufbauen - in MapLibre GL ist das ein bestimmtes Format
+                        const property = feature.properties[key as keyof typeof feature.properties];
+                        if (typeof property === "string" && property.toLowerCase().includes(value)) {
                           filters.push(["==", ["get", key], property]);
                           break;
                         }
@@ -683,185 +622,251 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
                     }
                   });
 
-                  // Filter anwenden, wenn Elemente gefunden wurden
                   if (filters.length > 1) {
                     map.setFilter(layerID, filters as any);
                   } else {
-                    // Wenn nichts gefunden wurde, alle Marker dieser Kategorie ausblenden
                     map.setFilter(layerID, ["==", ["get", "Name"], "NO_MATCH"]);
                   }
                 });
-              };
+              });
+            }
+
+            // NEUE FUNKTIONALITÄT: Fehlerhafte Marker auf einen Referenzpunkt setzen
+            // Sammle Marker außerhalb des erlaubten Bereichs für die Warndreieck-Darstellung
+            const errorFeatures = memoizedMarkers.features.filter(feature => {
+              // Prüfe zuerst, ob die Geometrie existiert und vom Typ 'Point' ist
+              if (!feature || !feature.geometry || feature.geometry.type !== 'Point' || !feature.geometry.coordinates) {
+                return false;
+              }
               
-              // Entferne alle vorherigen Event-Listener (funktioniert zwar nicht perfekt, ist aber besser als nichts)
-              currentFilterInput.removeEventListener("keyup", filterFunction);
+              // Koordinaten korrigieren (falls nötig)
+              let [lon, lat] = feature.geometry.coordinates;
+              if (lon > 20 && lon < 200) lon = lon / 10;
+              if (lat > 0 && lat < 10) lat = lat * 10;
               
-              // Registriere den neuen Event-Listener
-              currentFilterInput.addEventListener("keyup", filterFunction);
+              // Speichere die Originalkoordinaten im Feature für das Popup
+              if (feature.properties) {
+                feature.properties.originalCoordinates = `[${feature.geometry.coordinates[0]}, ${feature.geometry.coordinates[1]}]`;
+              }
+              
+              // Prüfen, ob die Koordinaten außerhalb des erlaubten Bereichs liegen
+              return !isWithinAllowedArea(lon, lat);
+            });
+            
+            // Erstelle die spezielle Ebene für fehlerhafte Marker
+            if (errorFeatures.length > 0) {
+              console.log(`[PlanBMap] Erstelle spezielle Ebene für ${errorFeatures.length} fehlerhafte Marker`);
+              createErrorMarkersLayer(map, errorFeatures);
             }
           } catch (error) {
-            console.error(`[PlanBMap ${componentId.current}] Fehler beim Laden der Kartendaten:`, error);
+            console.error(`[PlanBMap] Fehler beim Laden der Kartendaten:`, error);
           }
         };
+
+        // Handler für Klicks auf die Karte im Ortsauswahl-Modus
+        map.on('click', (e) => {
+          const isInPickerMode = isPickingLocation || !!tempMarkerRef.current || !!window._planBPickerModeActive;
+          
+          if (isInPickerMode && onMapClick) {
+            // Verarbeite Klick im Ortsauswahl-Modus
+            const coordinates: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+            
+            // Marker entfernen und Globale Variablen zurücksetzen
+            if (tempMarkerRef.current) {
+              tempMarkerRef.current.remove();
+              tempMarkerRef.current = null;
+            }
+            
+            map.getCanvas().style.cursor = '';
+            window._planBPickerModeActive = false;
+            window._planBLastSelectedCoordinates = coordinates;
+            
+            // Callback aufrufen
+            onMapClick(coordinates);
+          }
+        });
 
         // Lade Marker beim ersten Load
         map.on('load', loadMarkers);
         
         // Wichtig: Auch bei Stil-Änderungen die Marker neu laden
-        map.on('style.load', () => {
-          console.log(`[PlanBMap ${componentId.current}] Stil neu geladen, aktualisiere Marker...`);
-          loadMarkers();
-        });
+        map.on('style.load', loadMarkers);
       } catch (error) {
-        console.error(`[PlanBMap ${componentId.current}] Fehler beim Initialisieren der Karte:`, error);
+        console.error(`Fehler beim Initialisieren der Karte:`, error);
       }
     };
 
     initializeMap();
 
-    // Aktualisiere den Änderungstracker nach erfolgreicher Initialisierung
-    checkForSignificantChanges();
-
-    // Globaler Cleanup - wird nur beim Unmounten der Komponente ausgeführt
     return () => {
-      // Vermeide flüchtige Entfernung der Karte während normaler Re-Renders
-      console.log(`[PlanBMap ${componentId.current}] Komponente wird unmounted - entferne Map`);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
     };
-  // Wichtig: leere Abhängigkeitsliste, um sicherzustellen, dass die Karte nur einmal erstellt wird
   }, []);
 
-  // Separater Effekt für Map-Updates ohne Neuinitialisierung
+  // Effekt für das Aktualisieren der Karte mit neuen Daten
   useEffect(() => {
-    // Nur ausführen, wenn die Map bereits existiert
-    if (!mapRef.current) return;
+    if (!mapRef.current || !mapRef.current.isStyleLoaded()) return;
     
     const map = mapRef.current;
-    console.log(`[PlanBMap ${componentId.current}] Aktualisiere bestehende Karte mit neuen Props`);
-    console.log(`[PlanBMap ${componentId.current}] Current map state:`, 
-      { 
-        currentCenter: map.getCenter(), 
-        currentZoom: map.getZoom(), 
-        userInteraction: mapStateRef.current.isUserInteraction,
-        isPickingLocation
-      });
-    console.log(`[PlanBMap ${componentId.current}] Props passed:`, { center, zoom });
-    console.log(`[PlanBMap ${componentId.current}] State ref:`, mapStateRef.current);
     
-    // Prüfen, ob wir die Kartendaten aktualisieren müssen
-    // WICHTIG: Nach einem Markerklick soll der Zoom beibehalten werden
-    const shouldRespectUserZoom = mapStateRef.current.isUserInteraction;
-    const shouldUpdateMapPosition = !isPickingLocation && !shouldRespectUserZoom;
+    // Nur Position aktualisieren, wenn keine Benutzerinteraktion stattgefunden hat
+    const shouldUpdatePosition = !isPickingLocation && !mapStateRef.current.isUserInteraction;
     
-    // Entscheidung loggen
-    console.log(`[PlanBMap ${componentId.current}] shouldRespectUserZoom: ${shouldRespectUserZoom}, shouldUpdateMapPosition: ${shouldUpdateMapPosition}`);
-    
-    // Nur die Kartenposition ändern, wenn wir nicht im Picker-Modus sind 
-    // und keine Benutzerinteraktion stattgefunden hat
-    if (shouldUpdateMapPosition) {
-      console.log(`[PlanBMap ${componentId.current}] UPDATING map position to props:`, { center, zoom });
-    map.setCenter(center);
-    map.setZoom(zoom);
-    } else {
-      // Im Picker-Modus oder nach Benutzerinteraktion behalten wir den aktuellen Zustand bei
-      const currentCenter = map.getCenter();
-      const currentZoom = map.getZoom();
-      console.log(`[PlanBMap ${componentId.current}] KEEPING current map position:`, {
-        center: currentCenter,
-        zoom: currentZoom
-      });
-      
-      // Nach einem Markerklick nicht zoomen, aber Center ggf. anpassen (optional)
-      // map.setCenter(mapStateRef.current.center);
-      // map.setZoom(mapStateRef.current.zoom);
+    if (shouldUpdatePosition) {
+      map.setCenter(center);
+      map.setZoom(zoom);
     }
     
-    // Aktualisiere die Marker-Daten für jede Kategorie, falls die Map vollständig geladen ist
-    if (map.isStyleLoaded()) {
-      console.log(`[PlanBMap ${componentId.current}] Aktualisiere Marker-Daten`);
+    // Markerdaten aktualisieren
+    Object.entries(dynamicCategoryColors).forEach(([category]) => {
+      const layerID = `marker-${category}`;
+      const source = map.getSource(layerID) as maplibregl.GeoJSONSource;
       
-      // Aktualisiere die Datenquellen für jede Kategorie, ohne sie neu zu erstellen
-      Object.entries(dynamicCategoryColors).forEach(([category, color]) => {
-        const layerID = `marker-${category}`;
-        
-        // Filtere die Features nach Kategorie
-        const filteredFeatures = memoizedMarkers.features.filter(
-          (feature: Feature) => 
-            feature.properties && feature.properties.Kategorie === category
-        );
-        
-        // Prüfe, ob die Quelle bereits existiert
-        if (map.getSource(layerID)) {
-          console.log(`[PlanBMap ${componentId.current}] Aktualisiere Quelle für ${category} mit ${filteredFeatures.length} Features`);
-          
-          // Aktualisiere die bestehende Quelle mit neuen Daten
-          const source = map.getSource(layerID) as maplibregl.GeoJSONSource;
-          source.setData({
-            type: 'FeatureCollection',
-            features: filteredFeatures
+      if (source) {
+        const filteredFeatures = memoizedMarkers.features
+          .filter(feature => {
+            // Prüfe zunächst, ob Feature und properties existieren
+            if (!feature || !feature.properties) return false;
+            
+            // Kategorie des Features ermitteln
+            const featureKategorie = feature.properties?.Kategorie || "unbekannt";
+            
+            // Prüfen, ob das Feature zur aktuellen Kategorie gehört
+            return featureKategorie === category;
+          })
+          .map(feature => {
+            // Debug-Informationen für jedes Feature ausgeben
+            if (DEBUG_MODE && feature.geometry?.type === 'Point') {
+              const coords = (feature.geometry as any).coordinates;
+              const featureName = feature.properties?.Name || 'Unbenannt';
+              console.log(`[PlanBMap-DEBUG] Feature vor Korrektur: "${featureName}" | Kategorie: ${category} | Koordinaten: [${coords[0]}, ${coords[1]}]`);
+            }
+            
+            // Korrigiere falsche Koordinaten
+            const correctedFeature = fixCoordinates(feature);
+            
+            // Debug-Informationen für korrigierte Features ausgeben
+            if (DEBUG_MODE && feature.geometry?.type === 'Point') {
+              // Typprüfung für beide Features
+              const originalFeatureWithCoords = feature.geometry as any;
+              const correctedFeatureWithCoords = correctedFeature.geometry as any;
+              
+              // Nur weiter prüfen, wenn sich die Koordinaten geändert haben
+              if (correctedFeatureWithCoords.coordinates[0] !== originalFeatureWithCoords.coordinates[0] ||
+                  correctedFeatureWithCoords.coordinates[1] !== originalFeatureWithCoords.coordinates[1]) {
+                
+                const originalCoords = originalFeatureWithCoords.coordinates;
+                const correctedCoords = correctedFeatureWithCoords.coordinates;
+                console.log(`[PlanBMap-DEBUG] Feature KORRIGIERT: "${correctedFeature.properties?.Name}" | Original: [${originalCoords[0]}, ${originalCoords[1]}] | Korrigiert: [${correctedCoords[0]}, ${correctedCoords[1]}]`);
+              }
+            }
+            
+            return correctedFeature;
           });
-        }
-      });
-    }
-  }, [center, zoom, memoizedMarkers, dynamicCategoryColors, componentId, isPickingLocation]);
+        
+        source.setData({
+          type: 'FeatureCollection',
+          features: filteredFeatures
+        });
+      }
+    });
+  }, [memoizedMarkers, dynamicCategoryColors, center, zoom, isPickingLocation]);
 
-  // Separater Effekt für den temporären Marker im Ortsauswahl-Modus
+  // Effekt für den Ortsauswahl-Modus
   useEffect(() => {
-    // Nur ausführen, wenn die Map bereits existiert
     if (!mapRef.current) return;
     
     const map = mapRef.current;
     
-    console.log(`[PlanBMap ${componentId.current}] Ortsauswahl-Status geändert:`, isPickingLocation);
+    // Setze sowohl die lokale als auch die globale Zustandsvariable
+    const currentPickerState = appState.getState().pickerModeActive;
     
-    // Globaler State zum Speichern des aktuellen Modus
-    // Wird in einer konsolidierten Ref gespeichert, auf die von Event-Handlern zugegriffen werden kann
+    // Legacy: Aktualisiere auch die globale Variable
     window._planBPickerModeActive = isPickingLocation;
     
+    // Marker hinzufügen oder entfernen, je nach Modus
     if (isPickingLocation) {
-      // Aktiviere den Ortsauswahl-Modus
-      console.log(`[PlanBMap ${componentId.current}] Ortsauswahl-Modus AKTIVIERT`);
-      
-      // Zuerst Marker entfernen, falls er noch existiert (für den Fall, dass er nicht richtig entfernt wurde)
       if (tempMarkerRef.current) {
-        console.log(`[PlanBMap ${componentId.current}] Entferne vorherigen Marker vor Erstellung eines neuen`);
+        tempMarkerRef.current.remove();
+      }
+      
+      // Position bestimmen:
+      // 1. Versuche die Koordinaten aus dem globalen Zustand zu verwenden
+      // 2. Fallback auf window._planBLastSelectedCoordinates
+      // 3. Fallback auf Kartenmitte
+      let markerPosition: [number, number];
+      const lastSelectedCoordinates = appState.getState().lastSelectedCoordinates;
+      
+      if (lastSelectedCoordinates) {
+        markerPosition = lastSelectedCoordinates;
+        // Karte zur Position bewegen, falls weit entfernt
+        map.flyTo({
+          center: markerPosition,
+          zoom: Math.max(map.getZoom(), 15) // Zoom nicht verringern, nur erhöhen
+        });
+      } else if (window._planBLastSelectedCoordinates) {
+        markerPosition = window._planBLastSelectedCoordinates;
+        // Karte zur Position bewegen, falls weit entfernt
+        map.flyTo({
+          center: markerPosition,
+          zoom: Math.max(map.getZoom(), 15) // Zoom nicht verringern, nur erhöhen
+        });
+      } else {
+        // Fallback auf Kartenmitte
+        const center = map.getCenter();
+        markerPosition = [center.lng, center.lat];
+      }
+      
+      // Marker erstellen und an der richtigen Position platzieren
+      tempMarkerRef.current = new maplibregl.Marker({
+        color: '#FF0000',
+        draggable: false
+      }).setLngLat(markerPosition).addTo(map);
+      
+      map.getCanvas().style.cursor = 'crosshair';
+    } else {
+      if (tempMarkerRef.current) {
         tempMarkerRef.current.remove();
         tempMarkerRef.current = null;
       }
       
-      // Erstelle einen temporären Marker an der aktuellen Mausposition oder Kartenmitte
-      const center = map.getCenter();
-      const newMarker = new maplibregl.Marker({
-        color: '#FF0000',
-        draggable: false
-      }).setLngLat([center.lng, center.lat]).addTo(map);
+      map.getCanvas().style.cursor = '';
+    }
+    
+    return () => {
+      if (tempMarkerRef.current && !isPickingLocation) {
+        tempMarkerRef.current.remove();
+        tempMarkerRef.current = null;
+        map.getCanvas().style.cursor = '';
+      }
+    };
+  }, [isPickingLocation]);
+
+  // Handler für Map-Click-Events
+  useEffect(() => {
+    if (!mapRef.current) return;
+    
+    const map = mapRef.current;
+    
+    // Handler für Klicks auf die Karte im Ortsauswahl-Modus
+    const handleMapClick = (e: maplibregl.MapMouseEvent) => {
+      const isInPickerMode = isPickingLocation || appState.getState().pickerModeActive;
       
-      tempMarkerRef.current = newMarker;
-      
-      // Ändere den Cursor zum Anzeigen, dass man klicken kann
-      map.getCanvas().style.cursor = 'crosshair';
-      
-      // Event-Handler für die Mausbewegung hinzufügen
-      const mouseMoveHandler = (e: maplibregl.MapMouseEvent) => {
-        if (tempMarkerRef.current) {
-          tempMarkerRef.current.setLngLat([e.lngLat.lng, e.lngLat.lat]);
-        }
-      };
-      
-      // Event-Handler registrieren
-      map.on('mousemove', mouseMoveHandler);
-      
-      // Cleanup-Funktion
-      return () => {
-        // Event-Handler entfernen
-        map.off('mousemove', mouseMoveHandler);
+      if (isInPickerMode && onMapClick) {
+        // Koordinaten im Format [lon, lat] für den Callback
+        const coordinates: [number, number] = [e.lngLat.lng, e.lngLat.lat];
         
-        // Temporären Marker entfernen, falls er noch existiert
+        // Speichere die Koordinaten im globalen Zustand
+        appState.setSelectedCoordinates(coordinates);
+        
+        // Legacy: Für kompatibilität mit vorhandenen Komponenten
+        window._planBLastSelectedCoordinates = coordinates;
+        
+        // Marker entfernen
         if (tempMarkerRef.current) {
-          console.log(`[PlanBMap ${componentId.current}] CLEANUP: Entferne Marker beim Beenden des Auswahlmodus`);
           tempMarkerRef.current.remove();
           tempMarkerRef.current = null;
         }
@@ -869,319 +874,392 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
         // Cursor zurücksetzen
         map.getCanvas().style.cursor = '';
         
-        // Globalen Status zurücksetzen
-        window._planBPickerModeActive = false;
-        
-        console.log(`[PlanBMap ${componentId.current}] Ortsauswahl-Modus DEAKTIVIERT (Cleanup)`);
-        
-        // WICHTIG: Event auslösen, um sicherzustellen, dass der Dialog wieder angezeigt wird
-        // (nur wenn das Komponenten-Cleanup durch Moduswechsel ausgelöst wurde)
-        if (window._planBLastSelectedCoordinates) {
-          console.log(`[PlanBMap ${componentId.current}] Löse forceReopenDialog-Event aus bei CLEANUP`);
-          const reopenEvent = new CustomEvent('forceReopenDialog', {
-            detail: { coordinates: window._planBLastSelectedCoordinates }
-          });
-          document.dispatchEvent(reopenEvent);
-        }
-      };
-    } else {
-      // Wenn wir aus dem Picker-Modus kommen und noch einen temporären Marker haben,
-      // entfernen wir ihn manuell
-      if (tempMarkerRef.current) {
-        console.log(`[PlanBMap ${componentId.current}] MANUELL: Entferne Marker bei Modus-Deaktivierung`);
-        tempMarkerRef.current.remove();
-        tempMarkerRef.current = null;
-        
-        // Setze Cursor zurück
-        map.getCanvas().style.cursor = '';
+        // Callback aufrufen
+        onMapClick(coordinates);
       }
-      
-      // Globalen Status zurücksetzen
-      window._planBPickerModeActive = false;
-      
-      // WICHTIG: Event auslösen, um sicherzustellen, dass der Dialog wieder angezeigt wird
-      // (nur wenn Koordinaten ausgewählt wurden)
-      if (window._planBLastSelectedCoordinates) {
-        console.log(`[PlanBMap ${componentId.current}] Löse forceReopenDialog-Event aus bei MODUS-DEAKTIVIERUNG`);
-        const reopenEvent = new CustomEvent('forceReopenDialog', {
-          detail: { coordinates: window._planBLastSelectedCoordinates }
-        });
-        document.dispatchEvent(reopenEvent);
-      }
-    }
+    };
     
-    // Keine Cleanup-Funktion nötig, wenn isPickingLocation false ist
-    return undefined;
-  }, [isPickingLocation, componentId.current]);
-  
-  // Effekt für die Aktualisierung der Marker nach dem Speichern
-  useEffect(() => {
-    // Nur ausführen, wenn die Map bereits existiert
-    if (!mapRef.current) return;
+    // Event-Handler registrieren
+    map.on('click', handleMapClick);
     
-    const map = mapRef.current;
-    
-    // Handler für das planBMapRefreshMarkers-Event
-    const handleRefreshMarkers = async (event: CustomEvent) => {
-      console.log(`[PlanBMap ${componentId.current}] Aktualisiere Marker nach Speichern:`, event.detail);
-      
-      if (!map.isStyleLoaded()) {
-        console.log(`[PlanBMap ${componentId.current}] Karte noch nicht geladen, überspringe Aktualisierung`);
-        return;
-      }
-      
-      try {
-        // Wenn eine vollständige Markerliste im Event bereitgestellt wird, verwende diese direkt
-        if (event.detail?.fullMarkerList && event.detail.fullMarkerList.features) {
-          console.log(`[PlanBMap ${componentId.current}] Verwende bereitgestellte Markerliste für sofortige Aktualisierung`);
-          
-          const updatedMarkers = event.detail.fullMarkerList;
-          
-          // Gruppiere Features nach Kategorien
-          const featuresByCategory: Record<string, Feature[]> = {};
-          
-          // Verarbeite alle Features aus den bereitgestellten Daten
-          updatedMarkers.features.forEach((feature: Feature) => {
-            if (feature.properties && feature.properties.Kategorie) {
-              const category = feature.properties.Kategorie;
-              if (!featuresByCategory[category]) {
-                featuresByCategory[category] = [];
-              }
-              featuresByCategory[category].push(feature);
-            }
-          });
-          
-          // Überprüfe, ob neue Kategorien hinzugekommen sind, die ein UI-Update erfordern
-          const currentCategories = Object.keys(dynamicCategoryColors);
-          const newCategories = Object.keys(featuresByCategory).filter(
-            category => !currentCategories.includes(category)
-          );
-          
-          if (newCategories.length > 0) {
-            console.log(`[PlanBMap ${componentId.current}] Neue Kategorien erkannt, füge sie hinzu:`, newCategories);
-            
-            // Aktualisiere das dynamicCategoryColors-Objekt mit den neuen Kategorien
-            newCategories.forEach(category => {
-              if (!dynamicCategoryColors[category]) {
-                // Einfache Farbgenerierung basierend auf dem Kategorienamen
-                const hue = Math.abs(category.charCodeAt(0) * 137.5) % 360;
-                dynamicCategoryColors[category] = `hsl(${hue}, 70%, 50%)`;
-                
-                console.log(`[PlanBMap ${componentId.current}] Neue Kategorie erkannt und Farbe zugewiesen:`, 
-                            category, dynamicCategoryColors[category]);
-              }
-            });
-            
-            // Füge für jede neue Kategorie einen Layer hinzu
-            if (map.isStyleLoaded()) {
-              // Füge für jede neue Kategorie eine Ebene hinzu
-              newCategories.forEach(category => {
-                const layerID = `marker-${category}`;
-                
-                // Filtere die Features nach Kategorie
-                const filteredFeatures = updatedMarkers.features.filter(
-                  (feature: Feature) => 
-                    feature.properties && feature.properties.Kategorie === category
-                );
-                
-                console.log(`[PlanBMap ${componentId.current}] Füge neue Kategorie ${category} mit ${filteredFeatures.length} Features hinzu`);
-                
-                try {
-                  // Quelle hinzufügen
-                  map.addSource(layerID, {
-                    type: "geojson",
-                    data: {
-                      type: "FeatureCollection",
-                      features: filteredFeatures,
-                    },
-                  });
-                  
-                  // Layer hinzufügen
-                  map.addLayer({
-                    id: layerID,
-                    source: layerID,
-                    type: "circle",
-                    paint: {
-                      "circle-radius": 6,
-                      "circle-color": dynamicCategoryColors[category],
-                    },
-                  });
-                  
-                  console.log(`[PlanBMap ${componentId.current}] Neue Kategorie ${category} erfolgreich hinzugefügt`);
-                  
-                  // Nach einer kurzen Verzögerung style.load auslösen, um die Event-Handler zu registrieren
-                  setTimeout(() => {
-                    console.log(`[PlanBMap ${componentId.current}] Löse style.load aus für vollständiges Update`);
-                    map.fire('style.load');
-                  }, 100);
-                  
-                } catch (error) {
-                  console.error(`[PlanBMap ${componentId.current}] Fehler beim Hinzufügen der Kategorie ${category}:`, error);
-                }
-              });
-            } else {
-              // Wenn der Stil nicht geladen ist, verzögere das Hinzufügen
-              console.log(`[PlanBMap ${componentId.current}] Stil nicht geladen, verzögere Hinzufügen neuer Kategorien`);
-              
-              // Führe ein vollständiges Update durch
-              setTimeout(() => {
-                console.log(`[PlanBMap ${componentId.current}] Verzögertes Update mit neuen Kategorien`);
-                map.fire('style.load');
-              }, 100);
-            }
-            
-            // Fortfahren mit normaler Aktualisierung
-          }
-          
-          // Aktualisiere jede Kategorie mit den neuen Daten
-          Object.entries(featuresByCategory).forEach(([category, features]) => {
-            const layerID = `marker-${category}`;
-            
-            if (map.getSource(layerID)) {
-              console.log(`[PlanBMap ${componentId.current}] Aktualisiere Kategorie ${category} direkt mit ${features.length} Features`);
-              const source = map.getSource(layerID) as maplibregl.GeoJSONSource;
-              
-              try {
-                source.setData({
-                  type: 'FeatureCollection',
-                  features: features
-                });
-              } catch (error) {
-                console.error(`[PlanBMap ${componentId.current}] Fehler beim Aktualisieren von ${layerID}:`, error);
-              }
-            } else {
-              console.log(`[PlanBMap ${componentId.current}] Kategorie ${category} existiert nicht, erstelle Layer`);
-              
-              try {
-                // Quelle erst hinzufügen, wenn sie nicht existiert
-                map.addSource(layerID, {
-                  type: "geojson",
-                  data: {
-                    type: "FeatureCollection",
-                    features: features,
-                  },
-                });
+    // Aufraeumen
+    return () => {
+      map.off('click', handleMapClick);
+    };
+  }, [isPickingLocation, onMapClick]);
 
-                // Füge die Ebene zur Karte hinzu
-                map.addLayer({
-                  id: layerID,
-                  source: layerID,
-                  type: "circle",
-                  paint: {
-                    "circle-radius": 6,
-                    "circle-color": dynamicCategoryColors[category] || "#888888",
-                  },
-                });
-                
-                console.log(`[PlanBMap ${componentId.current}] Neuer Layer für Kategorie ${category} erstellt`);
-                
-                // WICHTIG: Hier müssten wir eigentlich alle Event-Handler für den neuen Layer hinzufügen
-                // Das ist kompliziert und würde Code-Duplizierung bedeuten
-                // Stattdessen führen wir ein vollständiges UI-Update durch
-                setTimeout(() => {
-                  console.log(`[PlanBMap ${componentId.current}] Vollständiges Update der Karte für neue Layer`);
-                  map.fire('style.load');
-                }, 100);
-              } catch (error) {
-                console.error(`[PlanBMap ${componentId.current}] Fehler beim Erstellen von Layer ${layerID}:`, error);
-              }
-            }
-          });
-        } else {
-          // DIREKTE AKTUALISIERUNG: Hole die neuesten Daten vom Server
-          console.log(`[PlanBMap ${componentId.current}] Lade frische Daten vom Server...`);
+  // Event-Handler für Map-Refresh und Ortsauswahl-Abbruch
+  useEffect(() => {
+    // Handler für Marker-Updates
+    const handleRefreshMarkers = (event: CustomEvent) => {
+      if (!mapRef.current) return;
+      
+      if (event.detail?.fullMarkerList) {
+        const markerList = event.detail.fullMarkerList;
+        const forceReregisterEvents = event.detail?.forceReregisterEvents === true;
+        
+        console.log(`[PlanBMap] Aktualisiere Marker mit ${markerList.features.length} Features insgesamt${forceReregisterEvents ? ' (mit Neuregistrierung der Events)' : ''}`);
+        
+        // Wenn Event-Handler neu registriert werden sollen, leere die registrierten Layer
+        if (forceReregisterEvents) {
+          registeredEventLayers.clear();
           
-          const response = await fetch('/api/places');
-          if (!response.ok) {
-            throw new Error(`Fehler beim Laden der aktuellen Daten: ${response.status}`);
-          }
-          
-          const freshData = await response.json();
-          console.log(`[PlanBMap ${componentId.current}] Frische Daten vom Server geladen:`, freshData);
-          
-          if (freshData && freshData.features && Array.isArray(freshData.features)) {
-            console.log(`[PlanBMap ${componentId.current}] Aktualisiere alle Kategorien mit ${freshData.features.length} Features`);
-            
-            // Gruppiere Features nach Kategorien
-            const featuresByCategory: Record<string, Feature[]> = {};
-            
-            // Verarbeite alle Features aus den frischen Daten
-            freshData.features.forEach((feature: Feature) => {
-              if (feature.properties && feature.properties.Kategorie) {
-                const category = feature.properties.Kategorie;
-                if (!featuresByCategory[category]) {
-                  featuresByCategory[category] = [];
-                }
-                featuresByCategory[category].push(feature);
-              }
-            });
-            
-            // Aktualisiere jede Kategorie mit den frischen Daten
-            Object.entries(featuresByCategory).forEach(([category, features]) => {
-              const layerID = `marker-${category}`;
-              
-              if (map.getSource(layerID)) {
-                console.log(`[PlanBMap ${componentId.current}] Aktualisiere Kategorie ${category} mit ${features.length} Features`);
-                const source = map.getSource(layerID) as maplibregl.GeoJSONSource;
-                source.setData({
-                  type: 'FeatureCollection',
-                  features: features
-                });
-              }
-            });
-            
-            // Wenn eine spezifische Feature-ID aktualisiert wurde, gib Debug-Informationen aus
-            if (event.detail?.updatedFeature) {
-              const updatedFeature = event.detail.updatedFeature as MongoDBFeature;
-              console.log(`[PlanBMap ${componentId.current}] Prüfe, ob Feature ID ${updatedFeature._id} in frischen Daten enthalten ist`);
-              
-              const foundInFreshData = freshData.features.some((f: any) => 
-                f._id === updatedFeature._id || 
-                (f.properties && f.properties._id === updatedFeature._id)
-              );
-              
-              console.log(`[PlanBMap ${componentId.current}] Feature ID ${updatedFeature._id} in frischen Daten gefunden: ${foundInFreshData}`);
-            }
-          }
+          // Setze den Cursor zurück
+          mapRef.current.getCanvas().style.cursor = '';
         }
-      } catch (error) {
-        console.error(`[PlanBMap ${componentId.current}] Fehler bei der Aktualisierung:`, error);
         
-        // FALLBACK: Bei einem Fehler versuchen wir, die Marker mit den vorhandenen Daten zu aktualisieren
-        console.log(`[PlanBMap ${componentId.current}] Fallback: Aktualisiere alle Marker mit lokalen Daten`);
-        
-        Object.entries(dynamicCategoryColors).forEach(([category, color]) => {
-          const layerID = `marker-${category}`;
+        Object.keys(dynamicCategoryColors).forEach(category => {
+          const sourceId = `marker-${category}`;
+          const source = mapRef.current?.getSource(sourceId) as maplibregl.GeoJSONSource;
           
-          // Filtere die Features nach Kategorie
-          const filteredFeatures = memoizedMarkers.features.filter(
-            (feature: Feature) => 
-              feature.properties && feature.properties.Kategorie === category
-          );
-          
-          // Prüfe, ob die Quelle bereits existiert
-          if (map.getSource(layerID)) {
-            console.log(`[PlanBMap ${componentId.current}] Aktualisiere Quelle für ${category} mit ${filteredFeatures.length} Features`);
+          if (source) {
+            const filteredFeatures = markerList.features
+              .filter((feature: Feature) => {
+                // Prüfe zunächst, ob Feature und properties existieren
+                if (!feature || !feature.properties) return false;
+                
+                // Kategorie des Features ermitteln
+                const featureKategorie = feature.properties?.Kategorie || "unbekannt";
+                
+                // Prüfen, ob das Feature zur aktuellen Kategorie gehört
+                return featureKategorie === category;
+              })
+              .map((feature: Feature) => {
+                // Debug-Informationen für jedes Feature ausgeben
+                if (DEBUG_MODE && feature.geometry?.type === 'Point') {
+                  const coords = (feature.geometry as any).coordinates;
+                  const featureName = feature.properties?.Name || 'Unbenannt';
+                  console.log(`[PlanBMap-DEBUG] Feature vor Korrektur: "${featureName}" | Kategorie: ${category} | Koordinaten: [${coords[0]}, ${coords[1]}]`);
+                }
+                
+                // Korrigiere falsche Koordinaten
+                const correctedFeature = fixCoordinates(feature);
+                
+                // Debug-Informationen für korrigierte Features ausgeben
+                if (DEBUG_MODE && feature.geometry?.type === 'Point') {
+                  // Typprüfung für beide Features
+                  const originalFeatureWithCoords = feature.geometry as any;
+                  const correctedFeatureWithCoords = correctedFeature.geometry as any;
+                  
+                  // Nur weiter prüfen, wenn sich die Koordinaten geändert haben
+                  if (correctedFeatureWithCoords.coordinates[0] !== originalFeatureWithCoords.coordinates[0] ||
+                      correctedFeatureWithCoords.coordinates[1] !== originalFeatureWithCoords.coordinates[1]) {
+                    
+                    const originalCoords = originalFeatureWithCoords.coordinates;
+                    const correctedCoords = correctedFeatureWithCoords.coordinates;
+                    console.log(`[PlanBMap-DEBUG] Feature KORRIGIERT: "${correctedFeature.properties?.Name}" | Original: [${originalCoords[0]}, ${originalCoords[1]}] | Korrigiert: [${correctedCoords[0]}, ${correctedCoords[1]}]`);
+                  }
+                }
+                
+                return correctedFeature;
+              });
             
-            // Aktualisiere die bestehende Quelle mit neuen Daten
-            const source = map.getSource(layerID) as maplibregl.GeoJSONSource;
+            console.log(`[PlanBMap] Update - Kategorie "${category}": ${filteredFeatures.length} Marker`);
+            
             source.setData({
               type: 'FeatureCollection',
               features: filteredFeatures
             });
+            
+            // Wenn Event-Handler neu registriert werden sollen und dieser Layer existiert
+            if (forceReregisterEvents) {
+              const layerID = `marker-${category}`;
+              
+              if (mapRef.current && mapRef.current.getLayer(layerID)) {
+                // Entferne den Layer aus der registrierten Liste
+                registeredEventLayers.delete(layerID);
+                
+                // Entferne alle Event-Handler
+                // Sicherer Ansatz zur Entfernung der Event-Handler
+                try {
+                  // Typ-sicheres Entfernen der Handler durch Verwendung von any
+                  (mapRef.current as any).off('mouseenter', layerID);
+                  (mapRef.current as any).off('mouseleave', layerID);
+                  (mapRef.current as any).off('click', layerID);
+                } catch (err) {
+                  console.error(`[PlanBMap] Fehler beim Entfernen der Event-Handler für Layer "${layerID}":`, err);
+                }
+                
+                // Event-Handler für Hover neu registrieren
+                mapRef.current.on("mouseenter", layerID, (e) => {
+                  if (!e.features?.length) return;
+                  
+                  if (mapRef.current) {
+                    mapRef.current.getCanvas().style.cursor = "pointer";
+                  
+                    const feature = e.features[0];
+                    if (!feature.geometry || !feature.properties) return;
+                    
+                    if (feature.geometry.type === 'Point' && 'coordinates' in feature.geometry) {
+                      const coordinates = [...feature.geometry.coordinates];
+                      const { Name, Beschreibung, Öffnungszeiten } = feature.properties;
+
+                      let popupContent = `<h3>${Name}</h3>`;
+                      if (Beschreibung) popupContent += `<p>${Beschreibung}</p>`;
+                      if (Öffnungszeiten) popupContent += `<p><b>Öffnungszeiten</b>: ${Öffnungszeiten}</p>`;
+
+                      const popup = new maplibregl.Popup({
+                        closeButton: false,
+                        closeOnClick: false,
+                      });
+                      
+                      popup.setLngLat(coordinates as [number, number])
+                        .setHTML(popupContent)
+                        .addTo(mapRef.current);
+                    }
+                  }
+                });
+
+                // Event-Handler für Marker-Klicks neu registrieren
+                mapRef.current.on("click", layerID, (e) => {
+                  if (!e.features?.length || !onMarkerClick || !mapRef.current) return;
+                  
+                  const feature = e.features[0];
+                  
+                  // Feature-ID ermitteln
+                  let featureId = feature.id;
+                  if (feature.properties?._id) {
+                    featureId = feature.properties._id;
+                  } else if (feature.properties?.id) {
+                    featureId = feature.properties.id;
+                  }
+                  
+                  // In geeignetes Format für Handler umwandeln
+                  const geoJsonFeature: MongoDBFeature = {
+                    type: "Feature",
+                    geometry: feature.geometry,
+                    properties: {
+                      ...feature.properties,
+                      _id: featureId !== undefined ? String(featureId) : undefined
+                    },
+                    _id: featureId !== undefined ? String(featureId) : undefined
+                  };
+                  
+                  // Aktuellen Zustand speichern und Handler aufrufen
+                  const currentCenter = mapRef.current.getCenter();
+                  const currentZoom = mapRef.current.getZoom();
+                  
+                  mapStateRef.current = {
+                    center: { lat: currentCenter.lat, lon: currentCenter.lng },
+                    zoom: currentZoom,
+                    isUserInteraction: true
+                  };
+                  
+                  onMarkerClick(geoJsonFeature);
+                });
+
+                // Event-Handler für Mouse-Leave neu registrieren
+                mapRef.current.on("mouseleave", layerID, () => {
+                  if (mapRef.current) {
+                    mapRef.current.getCanvas().style.cursor = "";
+                    // Entferne alle Popups
+                    const popups = document.querySelectorAll('.maplibregl-popup');
+                    popups.forEach(popup => popup.remove());
+                  }
+                });
+                
+                // Merke, dass Event-Handler für diesen Layer registriert wurden
+                registeredEventLayers.add(layerID);
+                
+                console.log(`[PlanBMap] Events für Layer "${layerID}" neu registriert`);
+              }
+            }
           }
         });
       }
     };
     
-    // Event-Listener registrieren
-    document.addEventListener('planBMapRefreshMarkers', handleRefreshMarkers as unknown as EventListener);
+    // Handler für Ortsauswahl-Abbruch
+    const handleCancelLocationPicker = () => {
+      if (!mapRef.current) return;
+      
+      if (tempMarkerRef.current) {
+        tempMarkerRef.current.remove();
+        tempMarkerRef.current = null;
+      }
+      
+      mapRef.current.getCanvas().style.cursor = '';
+      window._planBPickerModeActive = false;
+    };
     
-    // Cleanup-Funktion
+    document.addEventListener('planBMapRefreshMarkers', handleRefreshMarkers as unknown as EventListener);
+    document.addEventListener('planBMapCancelLocationPicker', handleCancelLocationPicker as unknown as EventListener);
+    
     return () => {
       document.removeEventListener('planBMapRefreshMarkers', handleRefreshMarkers as unknown as EventListener);
+      document.removeEventListener('planBMapCancelLocationPicker', handleCancelLocationPicker as unknown as EventListener);
     };
-  }, [mapRef.current, memoizedMarkers, dynamicCategoryColors, componentId]);
+  }, [dynamicCategoryColors, onMarkerClick]);
+
+  // Funktion zum Erstellen einer neuen Ebene für fehlerhafte Marker
+  const createErrorMarkersLayer = (map: Map, errorFeatures: Feature[]): void => {
+    // Prüfe, ob es fehlerhafte Marker gibt
+    if (errorFeatures.length === 0) return;
+    
+    console.log(`[PlanBMap] Erstelle spezielle Ebene für ${errorFeatures.length} fehlerhafte Marker mit Warndreieck`);
+    
+    // Referenzpunkt für fehlerhafte Marker (nahe Brixen)
+    const errorLon = 11.56610;  // Korrigiert von 116.566
+    const errorLat = 46.67185;  // Korrigiert von 4.671
+    
+    // Versetze die fehlerhaften Marker leicht, damit sie sich nicht überlagern
+    const errorFeatureCollection: FeatureCollection = {
+      type: 'FeatureCollection',
+      features: errorFeatures
+        .filter(feature => feature && feature.geometry && feature.geometry.type === 'Point')
+        .map((feature, index) => {
+          // Kopiere das Feature und ändere nur die Koordinaten
+          const copyFeature = { ...feature };
+          if (copyFeature.geometry.type === 'Point') {
+            // Versetze die Marker leicht kreisförmig um den Referenzpunkt
+            const angle = (index % 12) * (Math.PI * 2 / 12);
+            const radius = 0.0005 * (1 + Math.floor(index / 12) * 0.5); // ca. 50m Radius, wachsend für mehr Marker
+            
+            copyFeature.geometry = {
+              ...copyFeature.geometry,
+              coordinates: [
+                errorLon + Math.cos(angle) * radius,
+                errorLat + Math.sin(angle) * radius
+              ]
+            };
+          }
+          return copyFeature;
+        })
+    };
+    
+    try {
+      // Erstelle eine Warndreieck-SVG für fehlerhafte Marker
+      const warningTriangleSvg = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36">
+          <path fill="yellow" stroke="black" stroke-width="1" d="M12 2 L22 20 L2 20 Z"/>
+          <text x="12" y="16" font-size="12" text-anchor="middle" fill="black">!</text>
+        </svg>
+      `;
+      
+      // Konvertiere SVG zu Base64
+      const base64Svg = btoa(warningTriangleSvg);
+      const warningIconUrl = `data:image/svg+xml;base64,${base64Svg}`;
+      
+      // Verwende einen Workaround für loadImage, da die API unterschiedlich sein kann
+      const img = new Image();
+      img.onload = () => {
+        // Erstelle ein Canvas, um das Bild zu zeichnen
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          
+          // Konvertiere das Canvas zu einer ImageData
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
+          // Füge das Bild zur Karte hinzu
+          try {
+            // Prüfe, ob das Bild bereits existiert
+            if (!map.hasImage('warning-triangle')) {
+              map.addImage('warning-triangle', { width: img.width, height: img.height, data: new Uint8Array(imageData.data.buffer) }, { pixelRatio: 1 });
+            }
+            
+            // Prüfe, ob die Quelle bereits existiert
+            if (!map.getSource('error-markers')) {
+              // Quelle für fehlerhafte Marker hinzufügen
+              map.addSource('error-markers', {
+                type: 'geojson',
+                data: errorFeatureCollection
+              });
+              
+              // Layer für fehlerhafte Marker mit Warndreieck hinzufügen
+              map.addLayer({
+                id: 'error-markers-layer',
+                type: 'symbol',
+                source: 'error-markers',
+                layout: {
+                  'icon-image': 'warning-triangle',
+                  'icon-size': 0.5,
+                  'icon-allow-overlap': true,
+                  'text-field': ['get', 'Name'],
+                  'text-size': 12,
+                  'text-offset': [0, 1.5],
+                  'text-anchor': 'top'
+                },
+                paint: {
+                  'text-color': '#333',
+                  'text-halo-color': '#fff',
+                  'text-halo-width': 1
+                }
+              });
+            } else {
+              // Quelle existiert bereits, aktualisiere nur die Daten
+              const source = map.getSource('error-markers') as maplibregl.GeoJSONSource;
+              source.setData(errorFeatureCollection);
+              console.log(`[PlanBMap] Existierende Quelle "error-markers" aktualisiert mit ${errorFeatureCollection.features.length} fehlerhaften Markern`);
+            }
+            
+            // Event-Handler nur hinzufügen, wenn sie noch nicht registriert wurden
+            if (!registeredEventLayers.has('error-markers-layer')) {
+              // Event-Handler für Hover
+              map.on('mouseenter', 'error-markers-layer', (e) => {
+                if (!e.features?.length) return;
+                map.getCanvas().style.cursor = 'pointer';
+                
+                const feature = e.features[0];
+                if (!feature.properties) return;
+                
+                const coordinates = (feature.geometry as any).coordinates.slice();
+                const name = feature.properties.Name || 'Unbenannter Ort';
+                const originalCoords = feature.properties.originalCoordinates || 'unbekannt';
+                
+                const popupContent = `
+                  <h3>${name}</h3>
+                  <p><strong>FEHLERHAFTE KOORDINATEN!</strong></p>
+                  <p>Ursprüngliche Koordinaten: ${originalCoords}</p>
+                  <p>Bitte öffnen und speichern Sie diesen Ort, um die Koordinaten zu korrigieren.</p>
+                `;
+                
+                const popup = new maplibregl.Popup()
+                  .setLngLat(coordinates)
+                  .setHTML(popupContent)
+                  .addTo(map);
+              });
+              
+              // Event-Handler für Mouseleave
+              map.on('mouseleave', 'error-markers-layer', () => {
+                map.getCanvas().style.cursor = '';
+              });
+              
+              // Event-Handler für Klick
+              map.on('click', 'error-markers-layer', (e) => {
+                if (!e.features?.length || !onMarkerClick) return;
+                
+                const feature = e.features[0];
+                if (!feature.properties) return;
+                
+                // In geeignetes Format für Handler umwandeln
+                const geoJsonFeature: MongoDBFeature = {
+                  type: "Feature",
+                  geometry: feature.geometry as any,
+                  properties: feature.properties,
+                  _id: feature.properties._id
+                };
+                
+                // Handler aufrufen
+                onMarkerClick(geoJsonFeature);
+              });
+              
+              // Merke, dass Event-Handler für diesen Layer registriert wurden
+              registeredEventLayers.add('error-markers-layer');
+            }
+          } catch (error) {
+            console.error(`[PlanBMap] Fehler beim Hinzufügen der fehlerhaften Marker:`, error);
+          }
+        }
+      };
+      img.src = warningIconUrl;
+    } catch (error) {
+      console.error(`[PlanBMap] Fehler beim Erstellen der fehlerhaften Marker:`, error);
+    }
+  };
 
   return (
     <div className={styles.container} style={{ width, height }}>
