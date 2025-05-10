@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GetServerSideProps } from 'next';
 import Head from 'next/head';
 import { FeatureCollection, Feature, Geometry, GeoJsonProperties } from 'geojson';
 import dynamic from 'next/dynamic';
 import { MongoClient } from 'mongodb';
+import { Maximize, Minimize } from 'lucide-react';
 
 // Dynamischer Import der MapExplorer-Komponente
 const MapExplorer = dynamic(() => import('../components/MapExplorer'), {
   ssr: false,
-  loading: () => <div className="h-[70vh] w-full flex items-center justify-center bg-green-50/50 rounded-lg border border-green-200">Lade Karte...</div>
+  loading: () => <div className="h-[90vh] w-full flex items-center justify-center bg-green-50/50 rounded-lg border border-green-200">Lade Karte...</div>
 });
 
 interface HomeProps {
@@ -57,9 +58,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         // Konvertiere MongoDB ObjectId in String für bessere Kompatibilität
         const idString = getIdAsString(marker._id);
         
-        // Logge die Struktur für Debug-Zwecke
-        //console.log(`Converting MongoDB document to GeoJSON feature. ID: ${idString}`, marker);
-        
         // _id sowohl im Wurzelobjekt als auch in den Properties speichern
         const featureWithId = {
           ...marker,
@@ -69,9 +67,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
             _id: idString // _id auch in den Properties speichern
           }
         };
-        
-        // Logge das konvertierte Feature
-        //console.log(`Converted feature:`, featureWithId);
         
         // Wir behalten die _id bei, obwohl sie nicht Teil des GeoJSON-Standards ist
         return featureWithId as Feature & { _id: string };
@@ -102,25 +97,56 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
 };
 
 const Home: React.FC<HomeProps> = ({ markers }) => {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+    
+    // Bei Aktivierung des Vollbildmodus auch den Browser-Vollbildmodus aktivieren
+    if (!isFullscreen) {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-green-50">
+    <div className={`min-h-screen flex flex-col bg-green-50 ${isFullscreen ? 'fullscreen-mode' : ''}`}>
       <Head>
         <title>Plan B Karte | Brixen</title>
         <meta name="description" content="Interaktive Karte von Brixen mit Points of Interest" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="flex-1 w-full py-6 md:py-8">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <MapExplorer markers={markers} mapHeight="70vh" />
+      <main className={`flex-1 w-full ${isFullscreen ? 'p-0' : 'py-2'}`}>
+        <div className="w-full relative">
+          <button
+            onClick={toggleFullscreen}
+            className="absolute top-4 right-4 z-50 bg-white p-2 rounded-full shadow-md hover:bg-gray-100 focus:outline-none fullscreen-button"
+            title={isFullscreen ? "Vollbildmodus beenden" : "Vollbildmodus"}
+          >
+            {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+          </button>
+          
+          <MapExplorer 
+            markers={markers} 
+            mapHeight={isFullscreen ? "100vh" : "90vh"} 
+            mapWidth="100%" 
+          />
         </div>
       </main>
 
-      <footer className="w-full py-4 border-t border-green-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-600">
-          Entwickelt für Plan B Brixen
-        </div>
-      </footer>
+      {!isFullscreen && (
+        <footer className="w-full py-2 border-t border-green-200">
+          <div className="text-center text-sm text-gray-600">
+            Entwickelt für Plan B Brixen
+          </div>
+        </footer>
+      )}
     </div>
   );
 };

@@ -1,3 +1,119 @@
+/* Karten-Container und Karte */
+.planb-map-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.planb-map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Filter-Gruppe (Kategorie-Checkboxen) */
+.filter-group {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  background-color: #fff;
+  border-radius: 4px;
+  padding: 10px;
+  opacity: 0.9;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.filter-group input[type="checkbox"] {
+  margin-right: 5px;
+}
+
+.filter-group label {
+  margin-right: 10px;
+  user-select: none;
+  cursor: pointer;
+}
+
+/* Suchfeld */
+.filter-ctrl {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1;
+  opacity: 0.9;
+}
+
+.filter-ctrl input[type="text"] {
+  padding: 8px 12px;
+  width: 200px;
+  border: none;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-size: 14px;
+}
+
+.filter-ctrl input[type="text"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #74b9ff;
+}
+
+/* Hervorhebung der Marker bei Hover */
+.hover-marker {
+  transition: all 0.2s ease;
+  transform: scale(1.2);
+}
+
+/* Anpassungen für kleine Bildschirme */
+@media screen and (max-width: 640px) {
+  .filter-ctrl input[type="text"] {
+    width: 150px;
+  }
+  
+  .filter-group {
+    max-width: 160px;
+    font-size: 14px;
+  }
+}
+
+/* Vollbildmodus-Anpassungen */
+.fullscreen {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999;
+}
+
+/* Popup-Anpassungen */
+.maplibregl-popup-content {
+  max-width: 300px;
+}
+
+/* Stile für Layer-Kontrollelemente */
+.layer-toggle {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.layer-toggle input {
+  margin-right: 8px;
+}
+
+.layer-toggle label {
+  cursor: pointer;
+  font-size: 14px;
+}
+
 /* Haupt-Kartenstile */
 .container {
   position: relative;
@@ -82,39 +198,39 @@
 }
 
 /* Popup-Stile */
-.maplibregl-popup {
+.popup {
   max-width: 300px;
 }
 
-.maplibregl-popup-content {
+.popup-content {
   padding: 15px;
   font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
 }
 
-.maplibregl-popup-content h3 {
+.popup-content h3 {
   margin: 0 0 10px 0;
   font-size: 16px;
 }
 
-.maplibregl-popup-content p {
+.popup-content p {
   margin: 0 0 10px 0;
   font-size: 14px;
   line-height: 1.4;
 }
 
-.maplibregl-popup-content details {
+.popup-details {
   margin-top: 10px;
   border-top: 1px solid #eee;
   padding-top: 10px;
 }
 
-.maplibregl-popup-content details summary {
+.popup-summary {
   cursor: pointer;
   font-size: 14px;
   color: #3386c0;
 }
 
-.maplibregl-popup-content pre {
+.popup-pre {
   max-height: 150px;
   overflow: auto;
   font-size: 12px;

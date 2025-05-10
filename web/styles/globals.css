@@ -65,17 +65,34 @@
   }
   body {
     @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+  }
+  html {
+    width: 100%;
+    height: 100%;
+  }
+  #__next {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    width: 100%;
   }
 }
 
-/* Maplibre Popup-Stile */
+/* Maplibre Popup-Stile - neu hinzugefügt als globale Stile */
 .maplibregl-popup {
   max-width: 300px;
+  z-index: 30;
 }
 
 .maplibregl-popup-content {
   padding: 15px;
   font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+  max-width: 300px;
 }
 
 .maplibregl-popup-content h3 {
@@ -108,6 +125,62 @@
   background-color: #f5f5f5;
   padding: 5px;
   border-radius: 3px;
+}
+
+/* Vollbildkarte Styles */
+.planb-map {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.fullscreen-map {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999;
+}
+
+/* Vollbildmodus für das gesamte Interface */
+.fullscreen-mode {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 10;
+  padding: 0 !important;
+  margin: 0 !important;
+  background-color: white !important;
+  overflow: hidden !important;
+}
+
+.fullscreen-mode main {
+  padding: 0 !important;
+  height: 100vh !important;
+}
+
+/* Stelle sicher, dass die Karte alle Klicks empfängt */
+.maplibregl-canvas-container {
+  height: 100% !important;
+  width: 100% !important;
+  pointer-events: auto !important;
+}
+
+/* Sicherstelle, dass der Canvas alle Events empfängt */
+.maplibregl-canvas {
+  pointer-events: auto !important;
+}
+
+/* Stelle sicher, dass der Vollbild-Button nicht im Weg ist */
+.fullscreen-button {
+  z-index: 20;
+  pointer-events: auto;
 }
 
 /* Animation für Erfolgsanzeige */

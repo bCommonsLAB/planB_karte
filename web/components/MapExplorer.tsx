@@ -92,7 +92,7 @@ interface MapExplorerProps {
 
 const MapExplorer: React.FC<MapExplorerProps> = ({
   markers: initialMarkers,
-  mapHeight = '600px',
+  mapHeight = '90vh',
   mapWidth = '100%'
 }) => {
   const [activeTab, setActiveTab] = useState<string>('map');
@@ -882,13 +882,13 @@ const MapExplorer: React.FC<MapExplorerProps> = ({
   };
   
   return (
-    <div className="w-full bg-[#e9f0df] rounded-lg shadow-sm border border-green-200 p-4">
+    <div className="w-full rounded-lg shadow-sm">
       {/* Füge das Tooltip-CSS als Style-Element hinzu */}
       <style dangerouslySetInnerHTML={{ __html: tooltipStyles }} />
 
       <Tabs defaultValue="map" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <div className="flex flex-row items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-2 bg-[#e9f0df] border-b border-green-200">
+          <div className="flex flex-row items-center gap-2 flex-wrap">
           <TabsList className="bg-gray-200 p-1 shadow-sm">
               <TabsTrigger 
                 value="map" 
@@ -964,7 +964,7 @@ const MapExplorer: React.FC<MapExplorerProps> = ({
           </div>
         </div>
 
-        <TabsContent value="map" className="mt-1 rounded-lg overflow-hidden border border-green-200">
+        <TabsContent value="map" className="mt-0 overflow-hidden">
           <div style={{ height: mapHeight, width: mapWidth }}>
             {isLoading ? (
               <div className="w-full h-full flex items-center justify-center bg-secondary/30">
@@ -1004,7 +1004,7 @@ const MapExplorer: React.FC<MapExplorerProps> = ({
           </div>
         </TabsContent>
 
-        <TabsContent value="gallery" className="mt-1">
+        <TabsContent value="gallery" className="mt-1 p-4 bg-[#e9f0df]">
           {isLoading ? (
             <div className="h-96 w-full flex items-center justify-center bg-secondary/10 rounded-lg">
               <div className="flex flex-col items-center gap-2">

@@ -1262,18 +1262,24 @@ const PlanBMap: React.FC<PlanBMapProps> = ({
   };
 
   return (
-    <div className={styles.container} style={{ width, height }}>
-      <div ref={mapContainer} className={styles.map}></div>
-      <div ref={filterGroupRef} className={styles.filterGroup}></div>
-      <div className={styles.filterCtrl}>
+    <div className={`${styles['planb-map-container']} w-full h-full`} style={{ width, height }}>
+      <div ref={mapContainer} className={`${styles['planb-map']} planb-map w-full h-full`}></div>
+      <div ref={filterGroupRef} className={styles['filter-group']}></div>
+      <div className={styles['filter-ctrl']}>
         <input
           ref={filterInputRef}
           type="text"
           name="filter"
           placeholder="Filter by name"
-          className={styles.filterInput}
         />
       </div>
+      
+      {/* Temporer Marker für Location Picking */}
+      {isPickingLocation && (
+        <div className="absolute inset-x-0 bottom-4 mx-auto max-w-md bg-yellow-100 border border-yellow-300 text-yellow-800 px-4 py-3 rounded-md shadow-md z-50 text-center">
+          <p className="font-medium">Klicke auf die Karte, um einen Ort auszuwählen</p>
+        </div>
+      )}
     </div>
   );
 };
