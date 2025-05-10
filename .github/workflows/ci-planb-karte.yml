@@ -81,4 +81,4 @@ jobs:
           
       # Dokploy Deployment - Ersetze YOUR_DEPLOY_KEY durch den tatsächlichen Key
       - name: Trigger deployment
-        run: curl -X GET https://dokploy.bcommonslab.org/api/deploy/compose/YOUR_DEPLOY_KEY 
+        run: curl -X GET https://dokploy.bcommonslab.org/api/deploy/compose/fdG79XDn-G6XYl47Q9enD

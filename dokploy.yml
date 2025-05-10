@@ -28,3 +28,35 @@ backup:
   volumes:
     - mongo_data
   cron: "0 2 * * *"  # Tägliches Backup um 2 Uhr morgens 
+
+services:
+  planb-karte:
+    image: ghcr.io/bcommonslab/planb-karte:latest
+    pull_policy: always
+    restart: always
+    networks:
+      - dokploy-network
+    ports:
+      - 3004:3000
+    depends_on:
+      - mongodb
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/planB
+      - MONGODB_DATABASE_NAME=planB
+      - NODE_ENV=production
+
+  mongodb:
+    image: mongo:6
+    volumes:
+      - planb_mongo_data:/data/db
+    networks:
+      - dokploy-network
+    restart: always
+    command: ["--quiet", "--logpath", "/dev/null"]
+
+volumes:
+  planb_mongo_data:
+
+networks:
+  dokploy-network:
+    external: true 
