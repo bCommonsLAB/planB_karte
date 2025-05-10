@@ -1,0 +1,30 @@
+version: '1'
+
+# Konfiguration für Dokploy
+app:
+  name: plan-b-karte
+  repo: https://github.com/bCommonsLAB/planB_karte.git
+  branch: main
+  workdir: /opt/plan-b-karte
+
+# Docker-Compose-Konfiguration
+docker:
+  compose_file: docker-compose.prod.yml
+  env_file: .env.production
+
+# Deployment-Hooks
+hooks:
+  pre_deploy:
+    - echo "Starte Deployment der Plan B Karte..."
+    - mkdir -p /opt/plan-b-karte/data
+  
+  post_deploy:
+    - echo "Deployment abgeschlossen!"
+    - docker system prune -f --volumes
+
+# Backup-Konfiguration
+backup:
+  enabled: true
+  volumes:
+    - mongo_data
+  cron: "0 2 * * *"  # Tägliches Backup um 2 Uhr morgens 
